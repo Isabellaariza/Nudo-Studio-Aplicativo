@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# Temp / tokens
+tmp_token.txt
+tok.txt
+tok2.txt
+
+# Editor
+.vscode/
+.idea/
+
+# Backend (has its own .gitignore)
+nudo-backend/node_modules/
+nudo-backend/uploads/
+nudo-backend/.env

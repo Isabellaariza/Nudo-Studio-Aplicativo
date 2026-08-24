@@ -1,0 +1,41 @@
+.hero-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-dot {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: heroDotFloat linear infinite;
+  will-change: transform;
+}
+
+@keyframes heroDotFloat {
+  0%,
+  100% { transform: translateY(0); }
+  50%  { transform: translateY(-24px); }
+}
+
+/* Entrada del texto hero — CSS puro, no bloquea LCP */
+.hero-text-enter {
+  animation: heroFadeUp 0.7s ease-out both;
+}
+
+/* Entrada de la imagen hero — empieza visible (opacity:1), solo sube suavemente */
+.hero-img-enter {
+  animation: heroFadeUp 0.8s ease-out 0.1s both;
+}
+
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

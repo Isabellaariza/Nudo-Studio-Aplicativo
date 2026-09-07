@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 
 export async function obtenerNotificaciones(req, res, next) {
   try {
-    const [pedidosRes, stockRes, clientesRes, matriculasRes, abonosRes] = await Promise.all([
+    const [pedidosRes, stockRes, matriculasRes, abonosRes] = await Promise.all([
 
       // Pedidos pendientes de verificar pago (últimos 30 días)
       pool.query(`
@@ -17,19 +17,13 @@ export async function obtenerNotificaciones(req, res, next) {
 
       // Insumos con stock crítico
       pool.query(`
-        SELECT id_insumos, nombre, stock, stock_minimo
+        SELECT id_insumos, nombre,
+               CAST(stock AS numeric) AS stock,
+               stock_minimo
         FROM insumos
         WHERE CAST(stock AS numeric) < stock_minimo
-        ORDER BY nombre
-      `),
-
-      // Clientes nuevos (últimos 7 días)
-      pool.query(`
-        SELECT id_cliente, nombre_completo
-        FROM clientes
-        WHERE estado = TRUE
-        ORDER BY id_cliente DESC
-        LIMIT 5
+          AND estado = TRUE
+        ORDER BY (stock_minimo - CAST(stock AS numeric)) DESC
       `),
 
       // Matrículas nuevas (últimos 7 días)
@@ -39,20 +33,18 @@ export async function obtenerNotificaciones(req, res, next) {
                pt.nombre_taller AS taller
         FROM matricula m
         JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-        JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
+        LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
         WHERE m.fecha_matricula >= NOW() - INTERVAL '7 days'
         ORDER BY m.fecha_matricula DESC
       `),
 
-      // Abonos pendientes de aprobar
+      // Abonos pendientes de aprobar (últimos 30 días)
       pool.query(`
-        SELECT a.id_abono, a.fecha_abono, a.valor,
+        SELECT a.id_abono, a.fecha_abono, a.monto_abono,
                e.nombre_completo AS estudiante
         FROM abonos a
-        JOIN matricula m ON a.id_matricula = m.id_matricula
-        JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-        WHERE a.estado = 'activo'
-          AND a.comprobante_url IS NOT NULL
+        JOIN estudiantes e ON a.id_estudiante = e.id_estudiante
+        WHERE a.estado = 'por_verificar'
           AND a.fecha_abono >= NOW() - INTERVAL '30 days'
         ORDER BY a.fecha_abono DESC
         LIMIT 10
@@ -73,29 +65,15 @@ export async function obtenerNotificaciones(req, res, next) {
       });
     }
 
-    // Stock crítico — agrupado en una sola notificación
-    if (stockRes.rows.length > 0) {
-      const nombres = stockRes.rows.slice(0, 3).map(i => i.nombre).join(', ');
-      const extra = stockRes.rows.length > 3 ? ` y ${stockRes.rows.length - 3} más` : '';
+    // Stock crítico — una notificación por insumo
+    for (const i of stockRes.rows) {
       notificaciones.push({
-        id: 'stock_critico',
+        id: `stock_${i.id_insumos}`,
         tipo: 'stock',
-        texto: `Stock crítico: ${nombres}${extra}`,
+        texto: `Stock bajo: "${i.nombre}" — ${i.stock} unidades (mínimo: ${i.stock_minimo})`,
         fecha: new Date().toISOString(),
         navegar: 'stock',
         color: '#EF4444',
-      });
-    }
-
-    // Clientes nuevos
-    for (const c of clientesRes.rows) {
-      notificaciones.push({
-        id: `cliente_${c.id_cliente}`,
-        tipo: 'cliente',
-        texto: `Nuevo cliente registrado: ${c.nombre_completo}`,
-        fecha: new Date().toISOString(),
-        navegar: 'clientes',
-        color: '#6366F1',
       });
     }
 
@@ -104,7 +82,7 @@ export async function obtenerNotificaciones(req, res, next) {
       notificaciones.push({
         id: `matricula_${m.id_matricula}`,
         tipo: 'matricula',
-        texto: `${m.estudiante} se inscribió en "${m.taller}"`,
+        texto: `${m.estudiante} se inscribió en "${m.taller || 'taller'}"`,
         fecha: m.created_at,
         navegar: 'matricula',
         color: '#B8860B',
@@ -116,7 +94,7 @@ export async function obtenerNotificaciones(req, res, next) {
       notificaciones.push({
         id: `abono_${a.id_abono}`,
         tipo: 'abono',
-        texto: `Abono de $${Number(a.valor).toLocaleString('es-CO')} de ${a.estudiante} pendiente de revisión`,
+        texto: `Abono de $${Number(a.monto_abono).toLocaleString('es-CO')} de ${a.estudiante} pendiente de revisión`,
         fecha: a.fecha_abono,
         navegar: 'abonos',
         color: '#F59E0B',
@@ -126,6 +104,6 @@ export async function obtenerNotificaciones(req, res, next) {
     // Ordenar por fecha más reciente
     notificaciones.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-    res.json({ notificaciones });
+    res.json({ notificaciones, total: notificaciones.length });
   } catch (err) { next(err); }
 }

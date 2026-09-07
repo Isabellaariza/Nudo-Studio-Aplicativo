@@ -306,9 +306,10 @@ export function Dashboard({ onNavigate }: { onNavigate?: (section: string) => vo
               <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#10B981' }}>Ingresos del Mes</h3>
             </div>
             <div style={{ marginBottom: '24px' }}>
-              <p style={{ fontSize: '30px', fontWeight: 700, color: '#10B981', marginBottom: '8px' }}>
-                ${Number(resumen?.monto_ventas ?? 0).toLocaleString('es-CO')} COP
+              <p style={{ fontSize: '30px', fontWeight: 700, color: '#10B981', marginBottom: '4px' }}>
+                {formatCOP(Number(resumen?.ingresos_mes ?? resumen?.monto_ventas ?? 0))}
               </p>
+              <p style={{ fontSize: '12px', color: 'rgba(16,185,129,0.7)', fontWeight: 500 }}>Ventas + abonos del mes</p>
             </div>
             <div style={{ borderTop: '1px solid rgba(16, 185, 129, 0.2)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>

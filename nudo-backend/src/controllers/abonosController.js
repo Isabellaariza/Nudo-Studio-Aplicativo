@@ -16,7 +16,7 @@ export async function misAbonos(req, res, next) {
   try {
     const result = await pool.query(`
       SELECT a.id_abono, a.monto_abono, a.saldo_pendiente, a.metodo_pago,
-             a.estado, a.fecha_abono, a.comprobante_pago, a.motivo_rechazo,
+             a.estado, a.fecha_abono, a.vencimiento_pago, a.comprobante_pago, a.motivo_rechazo,
              a.id_matricula, a.id_taller,
              pt.nombre_taller AS taller,
              t.fecha AS fecha_taller, t.hora AS hora_taller,
@@ -65,15 +65,28 @@ export async function listarAbonos(req, res, next) {
 }
 
 export async function crearAbono(req, res, next) {
-  const { id_estudiante, id_taller, id_matricula, monto_abono, saldo_pendiente, metodo_pago, fecha_abono, vencimiento_pago, comprobante_pago } = req.body;
+  const { id_estudiante, id_taller, id_matricula, monto_abono, saldo_pendiente, metodo_pago, fecha_abono, comprobante_pago } = req.body;
   if (!id_estudiante || !monto_abono) return res.status(400).json({ mensaje: 'Estudiante y monto son obligatorios' });
   try {
+    // Calcular vencimiento_pago automáticamente: fecha del taller - 1 día
+    let vencimiento_pago = null;
+    if (id_taller) {
+      const tallerRes = await pool.query(
+        `SELECT t.fecha FROM talleres t WHERE t.id_talleres = $1`, [id_taller]
+      );
+      if (tallerRes.rows.length && tallerRes.rows[0].fecha) {
+        const fechaTaller = new Date(tallerRes.rows[0].fecha);
+        fechaTaller.setDate(fechaTaller.getDate() - 1);
+        vencimiento_pago = fechaTaller.toISOString().split('T')[0];
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO abonos (id_estudiante, id_taller, id_matricula, monto_abono, saldo_pendiente, metodo_pago, estado, fecha_abono, vencimiento_pago, comprobante_pago)
        VALUES ($1, $2, $3, $4, $5, $6, 'por_verificar', $7, $8, $9) RETURNING *`,
       [id_estudiante, id_taller || null, id_matricula || null, monto_abono, saldo_pendiente || 0,
        metodo_pago || 'Efectivo', fecha_abono || new Date().toISOString().split('T')[0],
-       vencimiento_pago || null, comprobante_pago || null]
+       vencimiento_pago, comprobante_pago || null]
     );
     res.status(201).json({ mensaje: 'Abono registrado', abono: result.rows[0] });
   } catch (err) { next(err); }
@@ -403,10 +416,22 @@ export async function crearAbonoTaller(req, res, next) {
     if (abonoExiste.rows.length) { await client.query('ROLLBACK'); return res.status(409).json({ mensaje: 'Ya tienes un abono registrado para este taller' }); }
 
     const saldo = precio - Number(monto_abono);
+
+    // Calcular vencimiento_pago: fecha del taller - 1 día
+    const tallerFechaRes = await client.query(
+      `SELECT fecha FROM talleres WHERE id_talleres = $1`, [id_taller]
+    );
+    let vencimiento_pago = null;
+    if (tallerFechaRes.rows.length && tallerFechaRes.rows[0].fecha) {
+      const fTaller = new Date(tallerFechaRes.rows[0].fecha);
+      fTaller.setDate(fTaller.getDate() - 1);
+      vencimiento_pago = fTaller.toISOString().split('T')[0];
+    }
+
     const result = await client.query(
-      `INSERT INTO abonos (id_estudiante, id_taller, monto_abono, saldo_pendiente, metodo_pago, estado, fecha_abono, comprobante_pago)
-       VALUES ($1, $2, $3, $4, $5, 'por_verificar', CURRENT_DATE, $6) RETURNING *`,
-      [id_estudiante, id_taller, monto_abono, saldo < 0 ? 0 : saldo, metodo_pago || 'Transferencia', comprobante_pago || null]
+      `INSERT INTO abonos (id_estudiante, id_taller, monto_abono, saldo_pendiente, metodo_pago, estado, fecha_abono, vencimiento_pago, comprobante_pago)
+       VALUES ($1, $2, $3, $4, $5, 'por_verificar', CURRENT_DATE, $6, $7) RETURNING *`,
+      [id_estudiante, id_taller, monto_abono, saldo < 0 ? 0 : saldo, metodo_pago || 'Transferencia', vencimiento_pago, comprobante_pago || null]
     );
 
     await client.query('COMMIT');

@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import './config/db.js';
+import { iniciarCron } from './config/cron.js';
 import authRoutes            from './routes/auth.js';
 import usuariosRoutes        from './routes/usuarios.js';
 import rolesRoutes           from './routes/roles.js';
@@ -69,4 +70,5 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📋 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  iniciarCron();
 });

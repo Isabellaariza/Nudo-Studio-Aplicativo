@@ -24,12 +24,27 @@ pool.connect(async (err, client, release) => {
     console.log('⏰ Hora del servidor Postgres:', res.rows[0].now);
 
     // ── Migraciones automáticas ──────────────────────────────────────────
-    // Agrega columnas nuevas si aún no existen (idempotente: no rompe si ya están)
     await client.query(`ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion TEXT`);
-    console.log('✅ Migración: clientes.direccion verificada');
-    // Elimina fecha_nacimiento de estudiantes si aún existe
+    console.log('✅ clientes.direccion verificada');
+
     await client.query(`ALTER TABLE estudiantes DROP COLUMN IF EXISTS fecha_nacimiento`);
-    console.log('✅ Migración: estudiantes.fecha_nacimiento eliminada (si existía)');
+    console.log('✅ estudiantes.fecha_nacimiento eliminada');
+
+    await client.query(`ALTER TABLE matricula DROP COLUMN IF EXISTS nombre_taller`);
+    console.log('✅ matricula.nombre_taller eliminada');
+
+    // Eliminar tablas que no se usan en la aplicación
+    await client.query(`DROP TABLE IF EXISTS roles_permisos CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS permisos CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS producto_insumos CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS detalles_produccion CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS detalle_talleres CASCADE`);
+    console.log('✅ Tablas sin uso eliminadas (roles_permisos, permisos, producto_insumos, detalles_produccion, detalle_talleres)');
+
+    // Eliminar columnas sin uso
+    await client.query(`ALTER TABLE categoria_insumos DROP COLUMN IF EXISTS total_insumos`);
+    await client.query(`ALTER TABLE categoria_productos DROP COLUMN IF EXISTS total_productos`);
+    console.log('✅ Columnas sin uso eliminadas (total_insumos, total_productos)');
   } catch (queryErr) {
     console.error('❌ Error al ejecutar la consulta de prueba:', queryErr);
   } finally {

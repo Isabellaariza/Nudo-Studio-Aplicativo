@@ -13,7 +13,7 @@ const router = Router();
 router.get('/mis-matriculas', verificarToken, async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT m.id_matricula, m.estado, m.fecha_matricula, m.nombre_taller,
+      SELECT m.id_matricula, m.estado, m.fecha_matricula,
              pt.nombre_taller AS taller, pt.precio, pt.nombre_instructor AS instructor,
              t.fecha AS fecha_taller, t.hora
       FROM matricula m
@@ -31,7 +31,7 @@ router.get('/', verificarToken, async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT m.id_matricula, m.id_estudiante, m.id_programacion,
-             m.fecha_matricula, m.estado, m.nombre_taller,
+             m.fecha_matricula, m.estado,
              e.nombre_completo AS estudiante, e.email, e.telefono,
              e.monto_total, e.monto_pagado,
              pt.nombre_taller AS taller, pt.precio,
@@ -103,8 +103,7 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
     const matRes = await pool.query(`
       SELECT m.id_matricula, m.id_estudiante, m.estado AS estado_anterior,
              e.nombre_completo AS estudiante, e.email,
-             pt.nombre_taller, pt.precio,
-             t.fecha AS fecha_taller, t.hora
+             pt.nombre_taller, pt.precio,             t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
       LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller

@@ -6,11 +6,10 @@ export async function obtenerEstadisticas(req, res, next) {
     const [
       ventasRes, pedidosRes, productosRes, insumosRes,
       clientesRes, talleresHoyRes, matriculasRes, topProductosRes,
-      ventasSemanaRes, ventasMensualRes, ventasAnualRes
+      ventasSemanaRes, ventasMensualRes, ventasAnualRes, abonosMesRes
     ] = await Promise.all([
-
       pool.query(`SELECT COUNT(*) AS total, COALESCE(SUM(total), 0) AS monto FROM ventas WHERE estado = TRUE`),
-      pool.query(`SELECT COUNT(*) AS total FROM pedidos WHERE estado IS NULL`),
+      pool.query(`SELECT COUNT(*) AS total FROM pedidos WHERE estado = 'PAGO_POR_VERIFICAR'`),
       pool.query(`SELECT COUNT(*) AS total FROM productos`),
       pool.query(`SELECT COUNT(*) AS total FROM insumos WHERE CAST(stock AS numeric) < stock_minimo`),
       pool.query(`SELECT COUNT(*) AS total FROM clientes WHERE estado = TRUE`),
@@ -28,7 +27,7 @@ export async function obtenerEstadisticas(req, res, next) {
         ORDER BY t.hora
       `),
 
-      pool.query(`SELECT COUNT(*) AS total FROM matricula`),
+      pool.query(`SELECT COUNT(*) AS total FROM matricula WHERE estado IN ('activa', 'activo', 'pendiente_pago')`),
 
       pool.query(`
         SELECT pr.nombre_producto AS nombre,
@@ -74,6 +73,14 @@ export async function obtenerEstadisticas(req, res, next) {
         GROUP BY DATE_TRUNC('month', fecha)
         ORDER BY DATE_TRUNC('month', fecha) ASC
       `),
+
+      // Ingresos de abonos aprobados/completos del mes actual
+      pool.query(`
+        SELECT COALESCE(SUM(monto_abono), 0) AS monto
+        FROM abonos
+        WHERE estado IN ('aprobado', 'completo')
+          AND DATE_TRUNC('month', fecha_abono) = DATE_TRUNC('month', NOW())
+      `),
     ]);
 
     const topMax = topProductosRes.rows[0]?.ventas || 1;
@@ -82,6 +89,8 @@ export async function obtenerEstadisticas(req, res, next) {
       resumen: {
         total_ventas:         Number(ventasRes.rows[0]?.total || 0),
         monto_ventas:         Number(ventasRes.rows[0]?.monto || 0),
+        monto_abonos_mes:     Number(abonosMesRes.rows[0]?.monto || 0),
+        ingresos_mes:         Number(ventasRes.rows[0]?.monto || 0) + Number(abonosMesRes.rows[0]?.monto || 0),
         pedidos_pendientes:   Number(pedidosRes.rows[0]?.total || 0),
         total_productos:      Number(productosRes.rows[0]?.total || 0),
         stock_critico:        Number(insumosRes.rows[0]?.total || 0),

@@ -26,7 +26,7 @@ import {
   FileText,
   Shield
 } from 'lucide-react';
-import { pedidosAPI } from '../lib/api';
+import { pedidosAPI, insumosAPI } from '../lib/api';
 
 interface AdminSidebarProps {
   currentSection: string;
@@ -117,13 +117,14 @@ export function AdminSidebar({ currentSection, onNavigate }: AdminSidebarProps) 
   const [isTablet, setIsTablet] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard']);
   const [pedidosPendientes, setPedidosPendientes] = useState(0);
+  const [stockCritico, setStockCritico] = useState(0);
   const prevPendientes = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchPendientes = async () => {
       try {
         const data = await pedidosAPI.getAll();
-        const count = (data.pedidos || []).filter((p: any) => p.estado === null).length;
+        const count = (data.pedidos || []).filter((p: any) => p.estado === 'PAGO_POR_VERIFICAR').length;
         if (prevPendientes.current !== null && count > prevPendientes.current) {
           // Solo notifica si ya teníamos un valor base (no en la primera carga)
           const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAA');
@@ -138,8 +139,23 @@ export function AdminSidebar({ currentSection, onNavigate }: AdminSidebarProps) 
     return () => clearInterval(interval);
   }, []);
 
-  // Detectar responsive
+  // Stock crítico — se actualiza cada 5 minutos
   useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const data = await insumosAPI.getAll();
+        const criticos = (data.insumos || []).filter(
+          (i: any) => Number(i.stock) < Number(i.stock_minimo)
+        ).length;
+        setStockCritico(criticos);
+      } catch {}
+    };
+    fetchStock();
+    const interval = setInterval(fetchStock, 300000); // 5 min
+    return () => clearInterval(interval);
+  }, []);
+
+  // Detectar responsive  useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768);
@@ -405,6 +421,11 @@ export function AdminSidebar({ currentSection, onNavigate }: AdminSidebarProps) 
                                 {subsection.id === 'pedidos' && pedidosPendientes > 0 && (
                                   <span style={{ marginLeft: 'auto', minWidth: '18px', height: '18px', borderRadius: '9px', background: '#EF4444', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
                                     {pedidosPendientes}
+                                  </span>
+                                )}
+                                {subsection.id === 'stock' && stockCritico > 0 && (
+                                  <span style={{ marginLeft: 'auto', minWidth: '18px', height: '18px', borderRadius: '9px', background: '#F59E0B', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                                    {stockCritico}
                                   </span>
                                 )}
                               </motion.button>

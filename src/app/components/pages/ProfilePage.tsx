@@ -431,19 +431,31 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 p-1 rounded-full w-fit" style={{ backgroundColor: 'rgba(45,75,57,0.06)' }}>
-          {(['orders', 'workshops'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="px-6 py-2.5 rounded-full text-sm font-medium transition-all"
-              style={{
-                backgroundColor: activeTab === tab ? '#2D4B39' : 'transparent',
-                color: activeTab === tab ? 'white' : 'rgba(45,75,57,0.55)',
-              }}
-            >
-              {tab === 'orders' ? 'Mis Pedidos' : 'Mis Talleres'}
-            </button>
-          ))}
+          {(['orders', 'workshops'] as const).map(tab => {
+            // Contador de acciones pendientes por tab
+            const count = tab === 'orders'
+              ? pedidosRechazados.length
+              : misAbonos.filter((a: any) => a.estado === 'por_verificar' || (a.estado === 'aprobado' && Number(a.saldo_pendiente) > 0) || a.estado === 'rechazado').length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="relative px-6 py-2.5 rounded-full text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: activeTab === tab ? '#2D4B39' : 'transparent',
+                  color: activeTab === tab ? 'white' : 'rgba(45,75,57,0.55)',
+                }}
+              >
+                {tab === 'orders' ? 'Mis Pedidos' : 'Mis Talleres'}
+                {count > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white flex items-center justify-center"
+                    style={{ fontSize: '9px', fontWeight: 700, background: '#EF4444', lineHeight: 1 }}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Contenido tabs */}
@@ -634,6 +646,22 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                               )}
                               {' · '}{a.fecha_abono ? a.fecha_abono.split('T')[0] : '—'}
                             </p>
+                            {/* Fecha del taller y límite de pago */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                              {a.fecha_taller && (
+                                <p className="text-xs flex items-center gap-1" style={{ color: 'rgba(45,75,57,0.5)' }}>
+                                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                                  Taller: <strong>{new Date(a.fecha_taller).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                                  {a.hora_taller && <> · {String(a.hora_taller).slice(0, 5)}</>}
+                                </p>
+                              )}
+                              {a.vencimiento_pago && tieneSaldo && !esCompleto && !esCancelado && (
+                                <p className="text-xs flex items-center gap-1" style={{ color: new Date(a.vencimiento_pago) < new Date() ? '#DC2626' : '#B45309' }}>
+                                  <Clock className="w-3 h-3 flex-shrink-0" />
+                                  Límite pago: <strong>{new Date(a.vencimiento_pago).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</strong>
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <AbonoEstadoBadge estado={a.estado} tieneSaldo={tieneSaldo} />
                         </div>
@@ -671,7 +699,22 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                           </div>
                         )}
 
-                        {/* APROBADO CON SALDO: aviso política + botón pagar saldo */}
+                        {/* COMPLETO o APROBADO sin saldo: confirmación de inscripción */}
+                        {(esCompleto || (esAprobado && !tieneSaldo)) && (
+                          <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs font-medium"
+                            style={{ backgroundColor: 'rgba(16,185,129,0.07)', color: '#065F46', border: '1px solid rgba(16,185,129,0.15)' }}>
+                            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                            Inscripción confirmada — ¡nos vemos en el taller!
+                          </div>
+                        )}
+
+                        {/* CANCELADO: aviso sin devolución */}
+                        {esCancelado && (
+                          <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs"
+                            style={{ backgroundColor: 'rgba(107,114,128,0.05)', color: '#6B7280', border: '1px solid rgba(107,114,128,0.12)' }}>
+                            Tu inscripción fue cancelada por no completar el pago a tiempo. El abono no es reembolsable.
+                          </div>
+                        )}
                         {esAprobado && tieneSaldo && (
                           <>
                             <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)' }}>

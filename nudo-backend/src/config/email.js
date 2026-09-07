@@ -190,3 +190,68 @@ export async function enviarCorreoMatriculaCancelada({ email, nombre, taller, mo
     `),
   });
 }
+
+// ── ABONOS ───────────────────────────────────────────────────────────────────
+
+export async function enviarCorreoVencimientoPago({ email, nombre, taller, fechaTaller, saldo, vencimiento }) {
+  await transporter.sendMail({
+    from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `⚠️ Tienes hasta mañana para pagar el saldo de "${taller}"`,
+    html: base(`
+      <h2 style="color:#2D4B39;margin:0 0 16px;">Hola, ${nombre} 👋</h2>
+      <p style="color:#4b5563;line-height:1.6;">Este es un recordatorio importante: tienes saldo pendiente en el siguiente taller y debes pagarlo <strong>antes de que venza el plazo</strong>.</p>
+      <div style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:8px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">Taller</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#2D4B39;">${taller}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+          <div>
+            <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Saldo pendiente</p>
+            <p style="margin:0;font-size:16px;font-weight:700;color:#DC2626;">$${Number(saldo).toLocaleString('es-CO')} COP</p>
+          </div>
+          <div>
+            <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Fecha del taller</p>
+            <p style="margin:0;font-size:16px;font-weight:700;color:#2D4B39;">${fechaTaller}</p>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #fde68a;">
+          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Límite de pago</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:#B45309;">${vencimiento} — 1 día antes del taller</p>
+        </div>
+      </div>
+      <div style="background:#fef2f2;border-radius:8px;padding:16px 20px;margin:16px 0;">
+        <p style="margin:0;font-size:13px;color:#991b1b;font-weight:600;">⚠️ Política de no devolución</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#4b5563;line-height:1.5;">Si no completas el pago antes del plazo, <strong>tu inscripción será cancelada automáticamente</strong> y el abono realizado <strong>no será devuelto</strong>, ya que cubre costos de reserva del cupo.</p>
+      </div>
+      <p style="color:#4b5563;line-height:1.6;">Para pagar, ingresa a tu perfil y sube el comprobante del saldo desde la sección <strong>Mis Talleres</strong>.</p>
+      <p style="color:#B8860B;font-weight:600;margin-top:24px;">Nudo Studio 🪢</p>
+    `),
+  });
+}
+
+export async function enviarCorreoAbonoCancelado({ email, nombre, taller, fechaTaller, monto }) {
+  await transporter.sendMail({
+    from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Inscripción cancelada: "${taller}" — Sin devolución del abono`,
+    html: base(`
+      <h2 style="color:#2D4B39;margin:0 0 16px;">Hola, ${nombre}</h2>
+      <p style="color:#4b5563;line-height:1.6;">Lamentamos informarte que tu inscripción al siguiente taller ha sido <strong>cancelada automáticamente</strong> porque no se completó el pago del saldo en el plazo establecido (1 día antes del taller).</p>
+      <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">Taller cancelado</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#991b1b;">${taller}</p>
+        <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Fecha del taller</p>
+        <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#374151;">${fechaTaller}</p>
+        <div style="padding-top:12px;border-top:1px solid #fecaca;">
+          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Abono realizado (no reembolsable)</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:#DC2626;">$${Number(monto).toLocaleString('es-CO')} COP</p>
+        </div>
+      </div>
+      <div style="background:#fef2f2;border-radius:8px;padding:14px 18px;margin:16px 0;">
+        <p style="margin:0;font-size:13px;color:#991b1b;">De acuerdo con nuestra política, los abonos <strong>no son reembolsables</strong> una vez vencido el plazo de pago, ya que cubren los costos de reserva del cupo y materiales del taller.</p>
+      </div>
+      <p style="color:#4b5563;line-height:1.6;">Si tienes preguntas o deseas inscribirte en una próxima edición del taller, no dudes en contactarnos.</p>
+      <p style="color:#B8860B;font-weight:600;margin-top:24px;">Nudo Studio 🪢</p>
+    `),
+  });
+}

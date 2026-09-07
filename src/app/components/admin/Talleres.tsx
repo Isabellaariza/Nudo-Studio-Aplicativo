@@ -17,9 +17,9 @@ const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2
 
 interface FormState {
   id_programacion: number | '';
-  fecha: string; hora: string; lugar: string; cupos: number;
+  fecha: string; hora: string; lugar: string;
 }
-const emptyForm: FormState = { id_programacion: '', fecha: '', hora: '', lugar: '', cupos: 10 };
+const emptyForm: FormState = { id_programacion: '', fecha: '', hora: '', lugar: '' };
 
 const estadoStyle = (estado: boolean, estado_sesion?: string) => {
   if (estado_sesion === 'COMPLETADO') return { bg: '#D1FAE5', color: '#065F46', label: 'Completado' };
@@ -45,7 +45,7 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
           </AdminDetailGrid>
           <AdminDetailGrid>
             <AdminDetailRow label="Lugar"  value={taller.lugar || '—'} />
-            <AdminDetailRow label="Cupos"  value={`${taller.cupos_ocupados || 0} / ${taller.cupos}`} />
+            <AdminDetailRow label="Inscritos" value={`${taller.cupos_ocupados || 0} estudiante(s)`} />
           </AdminDetailGrid>
           <AdminDetailGrid>
             <AdminDetailRow label="Precio" value={`$${Number(taller.precio).toLocaleString('es-CO')} COP`} />
@@ -87,13 +87,9 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
           <input type="time" value={form.hora} onChange={e => onChange('hora', e.target.value)} style={iStyle} />
         </div>
       </div>
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '24px' }}>
         <label style={lStyle}>Lugar</label>
         <input type="text" value={form.lugar} onChange={e => onChange('lugar', e.target.value)} placeholder="Ej: Sede principal, CC Florida" style={iStyle} />
-      </div>
-      <div style={{ marginBottom: '24px' }}>
-        <label style={lStyle}>Cupos</label>
-        <input type="number" min={1} value={form.cupos} onChange={e => onChange('cupos', Number(e.target.value))} style={iStyle} />
       </div>
       {type === 'edit' && (
         <div style={{ marginBottom: '16px' }}>
@@ -148,7 +144,6 @@ export function Talleres() {
         fecha: t.fecha ? t.fecha.split('T')[0] : '',
         hora: t.hora ? t.hora.slice(0, 5) : '',
         lugar: t.lugar || '',
-        cupos: Number(t.cupos) || 10,
       });
     } else if (type === 'add') {
       setForm(emptyForm);
@@ -250,9 +245,7 @@ export function Talleres() {
               {current.map((t, i) => {
                 const b = estadoStyle(t.estado, t.estado_sesion);
                 const completado = t.estado_sesion === 'COMPLETADO';
-                const cupos = Number(t.cupos) || 0;
                 const ocupados = Number(t.cupos_ocupados) || 0;
-                const pct = cupos > 0 ? Math.round((ocupados / cupos) * 100) : 0;
                 return (
                   <motion.div key={t.id_talleres}
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -290,15 +283,10 @@ export function Talleres() {
                       </div>
                     </div>
 
-                    {/* Barra cupos */}
-                    <div style={{ marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 600 }}>Cupos</span>
-                        <span style={{ fontSize: '12px', color: '#2D4B39', fontWeight: 700 }}>{ocupados}/{cupos}</span>
-                      </div>
-                      <div style={{ height: '6px', background: '#E5E7EB', borderRadius: '4px' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? '#EF4444' : pct >= 80 ? '#F59E0B' : '#10B981', borderRadius: '4px', transition: 'width 0.3s' }} />
-                      </div>
+                    {/* Inscritos */}
+                    <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Users style={{ width: '14px', height: '14px', color: '#B8860B' }} />
+                      <span style={{ fontSize: '13px', color: '#6B7280', fontWeight: 600 }}>{ocupados} inscrito(s)</span>
                     </div>
 
                     {/* Botones */}

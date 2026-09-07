@@ -16,14 +16,14 @@ export async function obtenerEstadisticas(req, res, next) {
 
       pool.query(`
         SELECT t.id_talleres, p.nombre_taller AS taller,
-               t.hora, t.cupos, t.estado,
+               t.hora, t.estado,
                p.nombre_instructor AS instructor,
                COUNT(m.id_matricula) AS inscritos
         FROM talleres t
         JOIN programacion_talleres p ON t.id_programacion = p.id_programacion_taller
         LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
         WHERE t.fecha = CURRENT_DATE AND t.estado = TRUE
-        GROUP BY t.id_talleres, p.nombre_taller, p.nombre_instructor, t.hora, t.cupos, t.estado
+        GROUP BY t.id_talleres, p.nombre_taller, p.nombre_instructor, t.hora, t.estado
         ORDER BY t.hora
       `),
 
@@ -101,7 +101,7 @@ export async function obtenerEstadisticas(req, res, next) {
         taller:            t.taller,
         hora_inicio:       t.hora,
         hora_fin:          '',
-        cupos_disponibles: t.cupos,
+        cupos_disponibles: null,
         inscritos:         Number(t.inscritos),
         instructor:        t.instructor,
         estado:            t.estado ? 'Programado' : 'Inactivo',

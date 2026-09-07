@@ -4,6 +4,7 @@ import { BookOpen, Search, Plus, Info, Edit, Trash2, Users, DollarSign, User, Pa
 import { Modal } from './Modal';
 import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { programacionAPI, talleresAPI } from '../../lib/api';
 
@@ -32,7 +33,7 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores }: {
           <AdminDetailRow label="Nombre del Taller" value={prog.nombre_taller} />
           <AdminDetailRow label="Instructor"         value={prog.instructor_nombre || prog.nombre_instructor} />
           <AdminDetailGrid>
-            <AdminDetailRow label="Precio" value={`$${Number(prog.precio).toLocaleString('es-CO')} COP`} />
+            <AdminDetailRow label="Precio" value={`${Number(prog.precio).toLocaleString('es-CO')} COP`} />
             <AdminDetailRow label="Materiales" value={`${prog.total_materiales || 0} asignado(s)`} />
           </AdminDetailGrid>
           {prog.descripcion && <AdminDetailRow label="Descripción" value={prog.descripcion} />}
@@ -247,7 +248,6 @@ export function ProgramacionTalleres() {
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        <DollarSign style={{ width: '13px', height: '13px', color: '#B8860B' }} />
                         <span style={{ fontSize: '14px', fontWeight: 700, color: '#B8860B' }}>${Number(p.precio).toLocaleString()}</span>
                       </div>
                     </td>

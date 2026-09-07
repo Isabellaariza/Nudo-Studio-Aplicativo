@@ -155,7 +155,8 @@ export function AdminSidebar({ currentSection, onNavigate }: AdminSidebarProps) 
     return () => clearInterval(interval);
   }, []);
 
-  // Detectar responsive  useEffect(() => {
+  // Detectar responsive
+  useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768);

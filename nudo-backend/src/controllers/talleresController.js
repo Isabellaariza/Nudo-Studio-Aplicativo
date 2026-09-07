@@ -4,7 +4,7 @@ export async function listarTalleres(req, res, next) {
   try {
     const { buscar } = req.query;
     let query = `
-      SELECT t.id_talleres, t.fecha, t.hora, t.lugar, t.cupos, t.estado, t.estado_sesion, t.id_programacion,
+      SELECT t.id_talleres, t.fecha, t.hora, t.lugar, t.estado, t.estado_sesion, t.id_programacion,
              pt.nombre_taller, pt.nombre_instructor, pt.precio, pt.descripcion, pt.id_empleado,
              e.nombre_completo AS instructor_nombre,
              COUNT(m.id_matricula) AS cupos_ocupados,
@@ -40,30 +40,29 @@ export async function listarInstructores(req, res, next) {
 }
 
 export async function crearTaller(req, res, next) {
-  const { id_programacion, fecha, hora, lugar, cupos } = req.body;
+  const { id_programacion, fecha, hora, lugar } = req.body;
   if (!id_programacion || !fecha) return res.status(400).json({ mensaje: 'La programación y la fecha son obligatorias' });
   try {
     const result = await pool.query(
-      `INSERT INTO talleres (id_programacion, fecha, hora, lugar, cupos, estado, estado_sesion)
-       VALUES ($1, $2, $3, $4, $5, TRUE, 'PROGRAMADO') RETURNING *`,
-      [id_programacion, fecha, hora || null, lugar || null, cupos || 10]
+      `INSERT INTO talleres (id_programacion, fecha, hora, lugar, estado, estado_sesion)
+       VALUES ($1, $2, $3, $4, TRUE, 'PROGRAMADO') RETURNING *`,
+      [id_programacion, fecha, hora || null, lugar || null]
     );
     res.status(201).json({ mensaje: 'Taller publicado', taller: result.rows[0] });
   } catch (err) { next(err); }
 }
 
 export async function actualizarTaller(req, res, next) {
-  const { fecha, hora, lugar, cupos, estado } = req.body;
+  const { fecha, hora, lugar, estado } = req.body;
   try {
     const result = await pool.query(
       `UPDATE talleres SET
          fecha   = COALESCE($1, fecha),
          hora    = COALESCE($2, hora),
          lugar   = COALESCE($3, lugar),
-         cupos   = COALESCE($4, cupos),
-         estado  = COALESCE($5, estado)
-       WHERE id_talleres = $6 RETURNING *`,
-      [fecha, hora || null, lugar || null, cupos, estado, req.params.id]
+         estado  = COALESCE($4, estado)
+       WHERE id_talleres = $5 RETURNING *`,
+      [fecha, hora || null, lugar || null, estado, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ mensaje: 'Taller no encontrado' });
     res.json({ mensaje: 'Taller actualizado', taller: result.rows[0] });

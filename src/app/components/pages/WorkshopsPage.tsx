@@ -34,8 +34,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
     }
   };
 
-  const cuposDisponibles = (t: any) => Math.max(0, Number(t.cupos) - Number(t.cupos_ocupados || 0));
-  const estaLleno = (t: any) => cuposDisponibles(t) === 0;
+  const estaLleno = (_t: any) => false; // sin límite de cupos fijo
 
   const formatFecha = (iso: string) => {
     if (!iso) return '—';
@@ -141,7 +140,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {talleres.map((taller, index) => {
               const lleno = estaLleno(taller);
-              const disponibles = cuposDisponibles(taller);
+              const inscritos = Number(taller.cupos_ocupados) || 0;
               const expanded = expandedId === taller.id_talleres;
               const materiales = taller.materiales ? String(taller.materiales).split(', ').filter(Boolean) : [];
 
@@ -195,7 +194,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
                       {taller.lugar && <InfoRow icon={MapPin} text={taller.lugar} />}
                       <InfoRow
                         icon={Users}
-                        text={lleno ? 'Sin cupos disponibles' : `${disponibles} de ${taller.cupos} cupos disponibles`}
+                        text={`${inscritos} inscrito${inscritos !== 1 ? 's' : ''}`}
                         muted={lleno}
                       />
                     </div>

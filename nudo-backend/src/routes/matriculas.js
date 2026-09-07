@@ -58,17 +58,8 @@ router.post('/', verificarToken, async (req, res, next) => {
     );
     if (existe.rows.length) return res.status(409).json({ mensaje: 'El estudiante ya está matriculado en esta programación' });
 
-    // Verificar cupos disponibles
-    const prog = await pool.query(
-      `SELECT pt.cupos, COUNT(m.id_matricula) AS inscritos
-       FROM programacion_talleres pt
-       LEFT JOIN matricula m ON m.id_programacion = pt.id_programacion_taller
-       WHERE pt.id_programacion_taller = $1
-       GROUP BY pt.cupos`, [id_programacion]
-    );
-    if (prog.rows.length && Number(prog.rows[0].inscritos) >= Number(prog.rows[0].cupos)) {
-      return res.status(409).json({ mensaje: 'No hay cupos disponibles en esta programación' });
-    }
+    // Verificar cupos disponibles (sin columna cupos — siempre hay lugar)
+    // Si necesitas límite de cupos, agrégalo como campo en programacion_talleres
 
     // Obtener precio del taller
     const precio = await pool.query(

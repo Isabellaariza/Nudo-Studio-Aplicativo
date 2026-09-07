@@ -377,7 +377,7 @@ export async function crearAbonoTaller(req, res, next) {
     await client.query('BEGIN');
 
     const tallerRes = await client.query(
-      `SELECT t.id_talleres, pt.nombre_taller, pt.precio, t.cupos,
+      `SELECT t.id_talleres, pt.nombre_taller, pt.precio,
               COUNT(m.id_matricula) AS inscritos
        FROM talleres t
        JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
@@ -387,7 +387,6 @@ export async function crearAbonoTaller(req, res, next) {
     );
     if (!tallerRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Taller no encontrado' }); }
     const taller = tallerRes.rows[0];
-    if (Number(taller.inscritos) >= Number(taller.cupos)) { await client.query('ROLLBACK'); return res.status(409).json({ mensaje: 'No hay cupos disponibles' }); }
 
     const precio = Number(taller.precio);
     const minimo = precio * 0.5;

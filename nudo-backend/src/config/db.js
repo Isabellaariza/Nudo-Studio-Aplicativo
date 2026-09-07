@@ -33,6 +33,10 @@ pool.connect(async (err, client, release) => {
     await client.query(`ALTER TABLE matricula DROP COLUMN IF EXISTS nombre_taller`);
     console.log('✅ matricula.nombre_taller eliminada');
 
+    await client.query(`ALTER TABLE talleres DROP COLUMN IF EXISTS cupos`);
+    await client.query(`ALTER TABLE programacion_talleres DROP COLUMN IF EXISTS cupos`);
+    console.log('✅ columna cupos eliminada de talleres y programacion_talleres (si existía)');
+
     // Eliminar tablas que no se usan en la aplicación
     await client.query(`DROP TABLE IF EXISTS roles_permisos CASCADE`);
     await client.query(`DROP TABLE IF EXISTS permisos CASCADE`);

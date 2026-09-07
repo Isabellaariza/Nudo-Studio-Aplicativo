@@ -19,7 +19,7 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
   const id_usuario = req.usuario.id;
   try {
     const tallerRes = await pool.query(
-      `SELECT t.id_talleres, pt.nombre_taller, pt.precio, t.cupos,
+      `SELECT t.id_talleres, pt.nombre_taller, pt.precio,
               COUNT(m.id_matricula) AS inscritos
        FROM talleres t
        JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
@@ -28,8 +28,7 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
        GROUP BY t.id_talleres, pt.nombre_taller, pt.precio`, [id_taller]
     );
     if (!tallerRes.rows.length) return res.status(404).json({ mensaje: 'Taller no encontrado' });
-    const { cupos, inscritos, precio, nombre_taller } = tallerRes.rows[0];
-    if (Number(inscritos) >= Number(cupos)) return res.status(409).json({ mensaje: 'No hay cupos disponibles' });
+    const { inscritos, precio, nombre_taller } = tallerRes.rows[0];
 
     let estRes = await pool.query(`SELECT id_estudiante FROM estudiantes WHERE id_usuarios = $1`, [id_usuario]);
     let id_estudiante;

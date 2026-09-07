@@ -35,7 +35,23 @@ dotenv.config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir peticiones sin origin (Postman, curl, health checks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // En producción también permite cualquier subdominio de onrender.com
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    callback(new Error(`CORS bloqueado para origen: ${origin}`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 app.get('/api/health', (_, res) => res.json({ estado: 'ok', mensaje: 'Nudo Studio API 🪢' }));

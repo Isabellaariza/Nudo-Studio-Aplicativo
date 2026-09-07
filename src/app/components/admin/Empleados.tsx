@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserCheck, Mail, Phone, Search, Plus, Eye, Edit, Trash2, Briefcase, Building2, DollarSign, Heart, User, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { empleadosAPI } from '../../lib/api';
 
@@ -72,37 +74,39 @@ function ModalContent({ type, empleado, form, onChange, onSubmit }: {
   };
 
   if (type === 'view' && empleado) {
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-          <Icon style={{ width: '15px', height: '15px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     return (
-      <div style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: '4px' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '10px', borderBottom: '1px solid rgba(45,75,57,0.1)', paddingBottom: '6px' }}>Información Personal</p>
-        <Row icon={User}         label="Nombre completo"       value={empleado.nombre_completo} />
-        <Row icon={Mail}         label="Email"                 value={empleado.email || ''} />
-        <Row icon={Phone}        label="Teléfono"              value={empleado.telefono || ''} />
-        <Row icon={Building2}    label="Dirección"             value={empleado.direccion || ''} />
-        <Row icon={AlertCircle}  label="Tipo de documento"     value={empleado.tipo_documento || ''} />
-        <Row icon={AlertCircle}  label="Número de documento"   value={empleado.numero_documento || ''} />
-        <p style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', margin: '16px 0 10px', borderBottom: '1px solid rgba(45,75,57,0.1)', paddingBottom: '6px' }}>Información Laboral</p>
-        <Row icon={Briefcase}    label="Cargo"                 value={empleado.cargo} />
-        <Row icon={Building2}    label="Departamento"          value={empleado.departamento} />
-        <Row icon={DollarSign}   label="Salario mensual"       value={empleado.salario_mensual ? `$${Number(empleado.salario_mensual).toLocaleString()} COP` : '—'} />
-        <Row icon={AlertCircle}  label="Tipo de contrato"      value={empleado.tipo_contrato} />
-        <Row icon={AlertCircle}  label="Fecha de inicio"       value={empleado.fecha_inicio ? new Date(empleado.fecha_inicio).toLocaleDateString('es-CO') : '—'} />
-        <p style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', margin: '16px 0 10px', borderBottom: '1px solid rgba(45,75,57,0.1)', paddingBottom: '6px' }}>Información Médica</p>
-        <Row icon={Heart}        label="Tipo de sangre"        value={empleado.tipo_sangre} />
-        <Row icon={Building2}    label="EPS"                   value={empleado.eps} />
-        <Row icon={Phone}        label="Contacto de emergencia" value={empleado.contacto_emergencia} />
-        <Row icon={AlertCircle}  label="Alergias"              value={empleado.alergias} />
+      <div style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN PERSONAL" icon={<User style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre completo"    value={empleado.nombre_completo} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Email"            value={empleado.email || ''} />
+            <AdminDetailRow label="Teléfono"         value={empleado.telefono || ''} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Dirección"          value={empleado.direccion || ''} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Tipo de documento"   value={empleado.tipo_documento || ''} />
+            <AdminDetailRow label="Número de documento" value={empleado.numero_documento || ''} />
+          </AdminDetailGrid>
+        </AdminDetailSection>
+        <AdminDetailSection title="INFORMACIÓN LABORAL" icon={<Briefcase style={{ width: '20px', height: '20px' }} />} color="gold">
+          <AdminDetailRow label="Cargo"            value={empleado.cargo} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Departamento"   value={empleado.departamento} />
+            <AdminDetailRow label="Tipo contrato"  value={empleado.tipo_contrato} />
+          </AdminDetailGrid>
+          <AdminDetailGrid>
+            <AdminDetailRow label="Salario mensual" value={empleado.salario_mensual ? `$${Number(empleado.salario_mensual).toLocaleString('es-CO')} COP` : '—'} />
+            <AdminDetailRow label="Fecha de inicio" value={empleado.fecha_inicio ? new Date(empleado.fecha_inicio).toLocaleDateString('es-CO') : '—'} />
+          </AdminDetailGrid>
+        </AdminDetailSection>
+        <AdminDetailSection title="INFORMACIÓN MÉDICA" icon={<Heart style={{ width: '20px', height: '20px' }} />} color="red">
+          <AdminDetailGrid>
+            <AdminDetailRow label="Tipo de sangre"  value={empleado.tipo_sangre} />
+            <AdminDetailRow label="EPS"             value={empleado.eps} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Contacto de emergencia" value={empleado.contacto_emergencia} />
+          <AdminDetailRow label="Alergias"                value={empleado.alergias} />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -411,14 +415,16 @@ export function Empleados() {
                   {/* BOTONES */}
                   <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
                     {[
-                      { icon: Eye, color: '#6B7280', bg: 'rgba(107,114,128,0.1)', action: () => openModal('view', emp) },
-                      { icon: Edit, color: '#B8860B', bg: 'rgba(184,134,11,0.1)', action: () => openModal('edit', emp) },
-                      { icon: Trash2, color: '#EF4444', bg: 'rgba(239,68,68,0.1)', action: () => { setToDelete(emp); setShowDeleteModal(true); } },
-                    ].map(({ icon: Icon, color, bg, action }, idx) => (
-                      <motion.button key={idx} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={action}
-                        style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                        <Icon style={{ width: '15px', height: '15px', color }} />
-                      </motion.button>
+                      { icon: Eye,    color: '#6B7280', bg: 'rgba(107,114,128,0.1)', action: () => openModal('view', emp), tip: 'Ver información' },
+                      { icon: Edit,   color: '#B8860B', bg: 'rgba(184,134,11,0.1)', action: () => openModal('edit', emp), tip: 'Editar empleado' },
+                      { icon: Trash2, color: '#EF4444', bg: 'rgba(239,68,68,0.1)', action: () => { setToDelete(emp); setShowDeleteModal(true); }, tip: 'Eliminar empleado' },
+                    ].map(({ icon: Icon, color, bg, action, tip }, idx) => (
+                      <Tooltip key={idx} text={tip}>
+                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={action}
+                          style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                          <Icon style={{ width: '15px', height: '15px', color }} />
+                        </motion.button>
+                      </Tooltip>
                     ))}
                   </div>
                 </motion.div>

@@ -38,11 +38,23 @@ export async function listarVentas(req, res, next) {
     const { buscar } = req.query;
     let query = `
       SELECT v.id_ventas, v.fecha, v.producto, v.cantidad, v.total, v.estado,
+             v.id_pedidos,
              c.nombre_completo AS cliente, c.id_cliente,
-             e.nombre_completo AS empleado
+             e.nombre_completo AS empleado,
+             COALESCE(
+               JSON_AGG(JSON_BUILD_OBJECT(
+                 'nombre',          pr.nombre_producto,
+                 'cantidad',        d.cantidad,
+                 'precio_unitario', d.precio_unitario,
+                 'imagen_url',      pr.imagen_url
+               ) ORDER BY pr.nombre_producto) FILTER (WHERE d.id_producto IS NOT NULL),
+               '[]'::json
+             ) AS detalle
       FROM ventas v
-      LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
+      LEFT JOIN clientes c  ON v.id_cliente  = c.id_cliente
       LEFT JOIN empleados e ON v.id_empleado = e.id_empleado
+      LEFT JOIN detalle_pedido d  ON v.id_pedidos = d.id_pedidos
+      LEFT JOIN productos pr      ON d.id_producto = pr.id_productos
       WHERE 1=1
     `;
     const params = [];
@@ -50,7 +62,7 @@ export async function listarVentas(req, res, next) {
       params.push(`%${buscar}%`);
       query += ` AND (c.nombre_completo ILIKE $1 OR v.producto ILIKE $1)`;
     }
-    query += ' ORDER BY v.fecha DESC';
+    query += ' GROUP BY v.id_ventas, c.nombre_completo, c.id_cliente, e.nombre_completo ORDER BY v.fecha DESC';
     const result = await pool.query(query, params);
     res.json({ ventas: result.rows, total: result.rowCount });
   } catch (err) { next(err); }
@@ -177,11 +189,15 @@ export async function listarPedidos(req, res, next) {
              c.nombre_completo AS cliente, c.email AS cliente_email, c.telefono AS cliente_telefono,
              e.nombre_completo AS empleado,
              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
-             JSON_AGG(JSON_BUILD_OBJECT(
-               'nombre', pr.nombre_producto,
-               'cantidad', d.cantidad,
-               'precio_unitario', d.precio_unitario
-             ) ORDER BY pr.nombre_producto) AS detalle
+             COALESCE(
+               JSON_AGG(JSON_BUILD_OBJECT(
+                 'nombre', pr.nombre_producto,
+                 'cantidad', d.cantidad,
+                 'precio_unitario', d.precio_unitario,
+                 'imagen_url', pr.imagen_url
+               ) ORDER BY pr.nombre_producto) FILTER (WHERE d.id_producto IS NOT NULL),
+               '[]'::json
+             ) AS detalle
       FROM pedidos p
       LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
       LEFT JOIN empleados e ON p.id_empleado = e.id_empleado
@@ -222,7 +238,15 @@ export async function actualizarEstadoPedido(req, res, next) {
 
     const pedidoRes = await pool.query(
       `SELECT p.id_pedidos, p.total, p.comprobante_pago, c.nombre_completo AS cliente, c.email AS cliente_email,
-              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto
+              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
+              COALESCE(
+                JSON_AGG(JSON_BUILD_OBJECT(
+                  'nombre', pr.nombre_producto,
+                  'cantidad', d.cantidad,
+                  'precio_unitario', d.precio_unitario
+                ) ORDER BY pr.nombre_producto) FILTER (WHERE d.id_producto IS NOT NULL),
+                '[]'::json
+              ) AS detalle
        FROM pedidos p 
        LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
        LEFT JOIN detalle_pedido d ON p.id_pedidos = d.id_pedidos
@@ -245,8 +269,9 @@ export async function actualizarEstadoPedido(req, res, next) {
       ]
     );
 
-    // Registrar venta automáticamente al completar
-    if (estadoFinal === 'COMPLETADO') {
+    // Registrar venta automáticamente al ACEPTAR el pedido (EN_PRODUCCION)
+    // No se genera si el pedido es rechazado o completado (ya fue registrada al aceptar)
+    if (estadoFinal === 'EN_PRODUCCION') {
       const client = await pool.connect();
       try { await registrarVentaDesdePedido(client, id_pedidos); }
       finally { client.release(); }
@@ -257,18 +282,21 @@ export async function actualizarEstadoPedido(req, res, next) {
       if (estadoFinal === 'EN_PRODUCCION') {
         enviarCorreoPedidoEnProduccion({ 
           email: pedido.cliente_email, nombre: pedido.cliente, 
-          numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé'
+          numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé',
+          detalle: pedido.detalle || []
         }).catch(() => {});
       } else if (estadoFinal === 'RECHAZADO') {
         enviarCorreoPedidoCancelado({ 
           email: pedido.cliente_email, nombre: pedido.cliente, 
           numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé',
+          detalle: pedido.detalle || [],
           motivo: motivo || 'El comprobante de pago adjunto no es válido.'
         }).catch(() => {});
       } else if (estadoFinal === 'COMPLETADO') {
         enviarCorreoPedidoCompletado({
           email: pedido.cliente_email, nombre: pedido.cliente,
-          numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé'
+          numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé',
+          detalle: pedido.detalle || []
         }).catch(() => {});
       }
     }
@@ -283,7 +311,15 @@ export async function cancelarPedido(req, res, next) {
   try {
     const pedidoRes = await pool.query(
       `SELECT p.id_pedidos, c.nombre_completo AS cliente, c.email AS cliente_email,
-              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto
+              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
+              COALESCE(
+                JSON_AGG(JSON_BUILD_OBJECT(
+                  'nombre', pr.nombre_producto,
+                  'cantidad', d.cantidad,
+                  'precio_unitario', d.precio_unitario
+                ) ORDER BY pr.nombre_producto) FILTER (WHERE d.id_producto IS NOT NULL),
+                '[]'::json
+              ) AS detalle
        FROM pedidos p 
        LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
        LEFT JOIN detalle_pedido d ON p.id_pedidos = d.id_pedidos
@@ -302,7 +338,8 @@ export async function cancelarPedido(req, res, next) {
         email: pedido.cliente_email, 
         nombre: pedido.cliente, 
         numeroPedido: numero, 
-        producto: pedido.producto || 'Productos de Macramé', 
+        producto: pedido.producto || 'Productos de Macramé',
+        detalle: pedido.detalle || [],
         motivo: motivo || 'Pedido cancelado por la administración.' 
       }).catch(() => {});
     }

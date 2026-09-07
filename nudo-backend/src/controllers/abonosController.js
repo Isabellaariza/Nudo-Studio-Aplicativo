@@ -34,6 +34,13 @@ export async function misAbonos(req, res, next) {
 
 export async function listarAbonos(req, res, next) {
   try {
+    const { fecha } = req.query; // filtro opcional: ?fecha=2024-01-15
+    let whereClause = '';
+    const params = [];
+    if (fecha) {
+      params.push(fecha);
+      whereClause = `WHERE a.fecha_abono::DATE = $1::DATE`;
+    }
     const result = await pool.query(`
       SELECT a.id_abono, a.monto_abono, a.saldo_pendiente, a.metodo_pago,
              a.estado, a.fecha_abono, a.vencimiento_pago,
@@ -41,13 +48,18 @@ export async function listarAbonos(req, res, next) {
              e.nombre_completo AS estudiante,
              e.email AS correo_estudiante,
              e.telefono AS celular_estudiante,
-             pt.nombre_taller AS taller
+             pt.nombre_taller AS taller,
+             (SELECT v.id_ventas FROM ventas v 
+              WHERE v.producto ILIKE '%' || pt.nombre_taller || '%' 
+                AND v.id_cliente = (SELECT id_cliente FROM clientes WHERE id_usuarios = e.id_usuarios LIMIT 1)
+              ORDER BY v.fecha DESC LIMIT 1) AS id_venta_relacionada
       FROM abonos a
       LEFT JOIN estudiantes e ON a.id_estudiante = e.id_estudiante
       LEFT JOIN talleres t ON a.id_taller = t.id_talleres
       LEFT JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
+      ${whereClause}
       ORDER BY a.fecha_abono DESC, a.id_abono DESC
-    `);
+    `, params);
     res.json({ abonos: result.rows, total: result.rowCount });
   } catch (err) { next(err); }
 }
@@ -143,6 +155,7 @@ export async function aprobarAbono(req, res, next) {
     );
     if (!abonoRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado' }); }
     const abono = abonoRes.rows[0];
+
     if (abono.estado === 'aprobado' || abono.estado === 'completo') {
       await client.query('ROLLBACK');
       return res.status(409).json({ mensaje: 'Este abono ya fue aprobado' });
@@ -154,46 +167,103 @@ export async function aprobarAbono(req, res, next) {
     const tieneSaldo = Number(abono.saldo_pendiente) > 0;
     const nuevoEstadoAbono = tieneSaldo ? 'aprobado' : 'completo';
 
-    // Si es un abono de saldo (ya tiene matrícula vinculada), activar matrícula
+    // ── VALIDAR MÁXIMO 2 ABONOS POR TALLER ──────────────────────────────
+    // Contamos abonos activos (aprobado/completo/por_verificar) excluyendo el actual
+    const totalAbonosRes = await client.query(
+      `SELECT COUNT(*) AS total FROM abonos
+       WHERE id_estudiante = $1 AND id_taller = $2
+         AND estado IN ('aprobado', 'completo')
+         AND id_abono != $3`,
+      [id_estudiante, abono.id_taller, abono.id_abono]
+    );
+    const abonosYaAprobados = Number(totalAbonosRes.rows[0].total);
+
+    // Si ya hay 2 abonos aprobados/completos anteriores, rechazar
+    if (abonosYaAprobados >= 2) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ mensaje: 'Ya existen 2 abonos aprobados para este taller. No se permiten más.' });
+    }
+
+    // Número de este abono: el que se está aprobando es el (abonosYaAprobados + 1)
+    const numeroAbono = abonosYaAprobados + 1; // 1 o 2
+    const tipoAbono = numeroAbono === 1 ? 'Primer abono' : 'Segundo abono';
+
+    // ── OBTENER DATOS DEL ESTUDIANTE PARA LA VENTA ─────────────────────
+    const estudianteRes = await client.query(
+      `SELECT e.nombre_completo, e.email,
+              (SELECT id_cliente FROM clientes WHERE id_usuarios = e.id_usuarios LIMIT 1) AS id_cliente
+       FROM estudiantes e WHERE e.id_estudiante = $1`, [id_estudiante]
+    );
+    const estudianteData = estudianteRes.rows[0] || {};
+
+    // ── RAMA A: Pago de saldo (abono ya tiene matrícula vinculada) ────────
+    // Este es siempre el segundo pago → número 2
     if (abono.id_matricula) {
+      // Marcar este abono como completo
       await client.query(`UPDATE abonos SET estado = 'completo' WHERE id_abono = $1`, [req.params.id]);
+      // Activar la matrícula
       await client.query(`UPDATE matricula SET estado = 'activo' WHERE id_matricula = $1`, [abono.id_matricula]);
-      // Poner saldo en 0 al abono original aprobado
+      // Cerrar el primer abono (saldo → 0, estado → completo)
       await client.query(
         `UPDATE abonos SET saldo_pendiente = 0, estado = 'completo'
          WHERE id_estudiante = $1 AND id_taller = $2 AND estado = 'aprobado' AND saldo_pendiente > 0`,
         [id_estudiante, abono.id_taller]
       );
+
+      // Generar venta independiente para este segundo pago
+      await client.query(
+        `INSERT INTO ventas (fecha, producto, cantidad, total, estado, id_cliente)
+         VALUES (NOW(), $1, 1, $2, TRUE, $3)`,
+        [
+          `${tipoAbono} · ${abono.nombre_taller || 'Taller'} (Abono ${numeroAbono}/2)`,
+          Number(abono.monto_abono) || 0,
+          estudianteData.id_cliente || null,
+        ]
+      );
+
       await client.query('COMMIT');
-      return res.json({ mensaje: 'Saldo aprobado, matrícula activada', id_matricula: abono.id_matricula });
+      return res.json({ mensaje: 'Saldo aprobado, matrícula activada, venta registrada', id_matricula: abono.id_matricula });
     }
 
+    // ── RAMA B: Primer pago (sin matrícula aún) ───────────────────────────
     // Marcar abono con estado correcto
     await client.query(`UPDATE abonos SET estado = $1 WHERE id_abono = $2`, [nuevoEstadoAbono, req.params.id]);
 
-    // Verificar que no esté ya matriculado
+    // Verificar que no esté ya matriculado (evitar duplicados)
     const yaMatriculado = await client.query(
       `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_programacion = $2`,
       [id_estudiante, abono.id_programacion_taller]
     );
+
+    let id_matricula;
     if (yaMatriculado.rows.length) {
-      await client.query('COMMIT');
-      return res.json({ mensaje: 'Abono aprobado (ya tenía matrícula)', id_matricula: yaMatriculado.rows[0].id_matricula });
+      id_matricula = yaMatriculado.rows[0].id_matricula;
+    } else {
+      // Crear matrícula: pendiente_pago si debe saldo, activo si pagó todo
+      const estadoMatricula = tieneSaldo ? 'pendiente_pago' : 'activo';
+      const matriculaRes = await client.query(
+        `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
+         VALUES ($1, $2, CURRENT_DATE, $3) RETURNING id_matricula`,
+        [id_estudiante, abono.id_programacion_taller, estadoMatricula]
+      );
+      id_matricula = matriculaRes.rows[0].id_matricula;
+      await client.query(`UPDATE abonos SET id_matricula = $1 WHERE id_abono = $2`, [id_matricula, req.params.id]);
     }
 
-    // Crear matrícula: pendiente_pago si debe saldo, activo si pagó todo
-    const estadoMatricula = tieneSaldo ? 'pendiente_pago' : 'activo';
-    const matriculaRes = await client.query(
-      `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
-       VALUES ($1, $2, CURRENT_DATE, $3) RETURNING id_matricula`,
-      [id_estudiante, abono.id_programacion_taller, estadoMatricula]
+    // Generar venta independiente para este primer pago
+    await client.query(
+      `INSERT INTO ventas (fecha, producto, cantidad, total, estado, id_cliente)
+       VALUES (NOW(), $1, 1, $2, TRUE, $3)`,
+      [
+        `${tipoAbono} · ${abono.nombre_taller || 'Taller'} (Abono ${numeroAbono}/2)`,
+        Number(abono.monto_abono) || 0,
+        estudianteData.id_cliente || null,
+      ]
     );
-    const id_matricula = matriculaRes.rows[0].id_matricula;
-    await client.query(`UPDATE abonos SET id_matricula = $1 WHERE id_abono = $2`, [id_matricula, req.params.id]);
 
     await client.query('COMMIT');
 
-    // Correo solo si pagó completo
+    // Correo de confirmación solo si el pago cubre el total (sin saldo pendiente)
     if (!tieneSaldo) {
       const emailRes = await pool.query(
         `SELECT e.nombre_completo, e.email, pt.nombre_taller, t.fecha, t.hora, pt.precio
@@ -216,7 +286,12 @@ export async function aprobarAbono(req, res, next) {
       }
     }
 
-    res.json({ mensaje: tieneSaldo ? 'Abono aprobado, matrícula creada con saldo pendiente' : 'Abono aprobado y matrícula activada', id_matricula });
+    res.json({
+      mensaje: tieneSaldo
+        ? 'Primer abono aprobado, matrícula creada con saldo pendiente, venta registrada'
+        : 'Primer abono aprobado, matrícula activada y venta registrada',
+      id_matricula
+    });
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 }

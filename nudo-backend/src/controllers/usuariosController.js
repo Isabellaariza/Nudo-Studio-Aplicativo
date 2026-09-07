@@ -27,7 +27,24 @@ export async function crear(req, res, next) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8) RETURNING id_usuarios, nombre, email`,
       [nombre, tipo_documento || null, numero_documento || null, correo.toLowerCase(), telefono || null, direccion || null, hash, id_rol || null]
     );
-    res.status(201).json({ mensaje: 'Usuario creado', usuario: result.rows[0] });
+
+    const nuevoUsuario = result.rows[0];
+
+    // Si el rol asignado es "cliente", crear automáticamente el registro en clientes
+    if (id_rol) {
+      const rolResult = await pool.query(`SELECT nombre FROM roles WHERE id_rol = $1`, [id_rol]);
+      const rolNombre = (rolResult.rows[0]?.nombre || '').toLowerCase();
+      if (rolNombre === 'cliente') {
+        await pool.query(
+          `INSERT INTO clientes (nombre_completo, email, telefono, direccion, estado, id_usuarios, id_rol)
+           VALUES ($1, $2, $3, $4, TRUE, $5, $6)
+           ON CONFLICT (email) DO NOTHING`,
+          [nombre, correo.toLowerCase(), telefono || null, direccion || null, nuevoUsuario.id_usuarios, id_rol]
+        );
+      }
+    }
+
+    res.status(201).json({ mensaje: 'Usuario creado', usuario: nuevoUsuario });
   } catch (err) { next(err); }
 }
 
@@ -57,7 +74,36 @@ export async function actualizar(req, res, next) {
       params
     );
     if (!result.rows.length) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    res.json({ mensaje: 'Usuario actualizado', usuario: result.rows[0] });
+
+    const usuario = result.rows[0];
+
+    // Si el rol actualizado es "cliente", asegurarse de que exista en la tabla clientes
+    if (id_rol) {
+      const rolResult = await pool.query(`SELECT nombre FROM roles WHERE id_rol = $1`, [id_rol]);
+      const rolNombre = (rolResult.rows[0]?.nombre || '').toLowerCase();
+      if (rolNombre === 'cliente') {
+        const yaExiste = await pool.query(
+          `SELECT id_cliente FROM clientes WHERE id_usuarios = $1 OR LOWER(email) = LOWER($2) LIMIT 1`,
+          [usuario.id_usuarios, usuario.email]
+        );
+        if (!yaExiste.rows.length) {
+          await pool.query(
+            `INSERT INTO clientes (nombre_completo, email, telefono, direccion, estado, id_usuarios, id_rol)
+             VALUES ($1, $2, $3, $4, TRUE, $5, $6)`,
+            [usuario.nombre, usuario.email, usuario.telefono || null, usuario.direccion || null, usuario.id_usuarios, id_rol]
+          );
+        } else {
+          // Sincronizar datos si ya existe
+          await pool.query(
+            `UPDATE clientes SET nombre_completo = $1, telefono = COALESCE($2, telefono),
+             direccion = COALESCE($3, direccion) WHERE id_usuarios = $4`,
+            [usuario.nombre, usuario.telefono || null, usuario.direccion || null, usuario.id_usuarios]
+          );
+        }
+      }
+    }
+
+    res.json({ mensaje: 'Usuario actualizado', usuario });
   } catch (err) { next(err); }
 }
 

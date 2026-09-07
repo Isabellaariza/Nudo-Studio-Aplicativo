@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Clock, Users, DollarSign, Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, CheckCircle, MapPin } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { talleresAPI, programacionAPI } from '../../lib/api';
 
@@ -33,31 +35,29 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
 }) {
   if (type === 'view' && taller) {
     const b = estadoStyle(taller.estado, taller.estado_sesion);
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-          <Icon style={{ width: '15px', height: '15px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     return (
-      <div>
-        <Row icon={Users}      label="Instructor"  value={taller.instructor_nombre || taller.nombre_instructor} />
-        <Row icon={Calendar}   label="Fecha"       value={taller.fecha ? new Date(taller.fecha).toLocaleDateString('es-CO') : '—'} />
-        <Row icon={Clock}      label="Hora"        value={taller.hora ? taller.hora.slice(0, 5) : '—'} />
-        <Row icon={MapPin}     label="Lugar"       value={taller.lugar || '—'} />
-        <Row icon={Users}      label="Cupos"       value={`${taller.cupos_ocupados || 0} inscritos / ${taller.cupos} cupos`} />
-        <Row icon={DollarSign} label="Precio"      value={`$${Number(taller.precio).toLocaleString()} COP`} />
-        {taller.materiales && <Row icon={Calendar} label="Materiales" value={taller.materiales} />}
-        <div style={{ marginTop: '8px' }}>
-          <span style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '12px', fontWeight: 700, background: estadoStyle(taller.estado, taller.estado_sesion).bg, color: estadoStyle(taller.estado, taller.estado_sesion).color }}>
-            {estadoStyle(taller.estado, taller.estado_sesion).label}
-          </span>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN DEL TALLER" icon={<Calendar style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Instructor" value={taller.instructor_nombre || taller.nombre_instructor} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Fecha"  value={taller.fecha ? new Date(taller.fecha).toLocaleDateString('es-CO') : '—'} />
+            <AdminDetailRow label="Hora"   value={taller.hora ? taller.hora.slice(0, 5) : '—'} />
+          </AdminDetailGrid>
+          <AdminDetailGrid>
+            <AdminDetailRow label="Lugar"  value={taller.lugar || '—'} />
+            <AdminDetailRow label="Cupos"  value={`${taller.cupos_ocupados || 0} / ${taller.cupos}`} />
+          </AdminDetailGrid>
+          <AdminDetailGrid>
+            <AdminDetailRow label="Precio" value={`$${Number(taller.precio).toLocaleString('es-CO')} COP`} />
+            {taller.materiales && <AdminDetailRow label="Materiales" value={taller.materiales} />}
+          </AdminDetailGrid>
+        </AdminDetailSection>
+        <AdminDetailSection title="ESTADO" icon={<CheckCircle style={{ width: '20px', height: '20px' }} />} color="teal">
+          <AdminDetailRow
+            label="Estado del taller"
+            badge={{ bg: b.bg, color: b.color, text: b.label }}
+          />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -303,26 +303,33 @@ export function Talleres() {
 
                     {/* Botones */}
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => openModal('view', t)}
-                        style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(107,114,128,0.08)', color: '#6B7280', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        <Eye size={14} /> Ver
-                      </motion.button>
+                      <Tooltip text="Ver información del taller">
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => openModal('view', t)}
+                          style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(107,114,128,0.08)', color: '#6B7280', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <Eye size={14} /> Ver
+                        </motion.button>
+                      </Tooltip>
                       {!completado && (
                         <>
-                          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => openModal('edit', t)}
-                            style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(184,134,11,0.1)', color: '#B8860B', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                            <Edit size={14} /> Editar
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleCompletar(t)}
-                            disabled={completando === t.id_talleres}
-                            title="Marcar como completado y descontar stock"
-                            style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(16,185,129,0.1)', color: '#065F46', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', opacity: completando === t.id_talleres ? 0.5 : 1 }}>
-                            <CheckCircle size={14} /> Completar
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => { setToDelete(t); setShowDeleteModal(true); }}
-                            style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(239,68,68,0.08)', color: '#EF4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                            <Trash2 size={14} /> Borrar
-                          </motion.button>
+                          <Tooltip text="Editar taller">
+                            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => openModal('edit', t)}
+                              style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(184,134,11,0.1)', color: '#B8860B', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              <Edit size={14} /> Editar
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Marcar como completado y descontar stock">
+                            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleCompletar(t)}
+                              disabled={completando === t.id_talleres}
+                              style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(16,185,129,0.1)', color: '#065F46', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', opacity: completando === t.id_talleres ? 0.5 : 1 }}>
+                              <CheckCircle size={14} /> Completar
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Eliminar taller">
+                            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => { setToDelete(t); setShowDeleteModal(true); }}
+                              style={{ flex: 1, padding: '10px 4px', borderRadius: '10px', border: 'none', background: 'rgba(239,68,68,0.08)', color: '#EF4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              <Trash2 size={14} /> Borrar
+                            </motion.button>
+                          </Tooltip>
                         </>
                       )}
                     </div>

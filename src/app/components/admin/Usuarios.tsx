@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Search, Plus, Info, Edit, User, Trash2, Mail, Phone, Shield, CheckCircle, MapPin, FileText, CreditCard } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
+import { Tooltip } from './Tooltip';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { toast } from 'sonner';
 import { usuariosAPI, rolesAPI } from '../../lib/api';
@@ -32,27 +34,26 @@ function ModalContent({ type, user, form, onChange, onSubmit, roles }: {
   onSubmit: () => void; roles: any[];
 }) {
   if (type === 'view' && user) {
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', borderRadius: '12px', background: 'rgba(45,75,57,0.03)', marginBottom: '10px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: 'linear-gradient(135deg, #2D4B39, #1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '14px', flexShrink: 0 }}>
-          <Icon style={{ width: '16px', height: '16px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     return (
-      <div>
-        <Row icon={User}        label="Nombre completo"     value={user.name} />
-        <Row icon={FileText}    label="Tipo de documento"   value={user.tipo_documento} />
-        <Row icon={CreditCard}  label="Número de documento" value={user.numero_documento} />
-        <Row icon={Mail}        label="Correo electrónico"  value={user.email} />
-        <Row icon={Phone}       label="Teléfono"            value={user.phone} />
-        <Row icon={MapPin}      label="Dirección"           value={user.direccion} />
-        <Row icon={Shield}      label="Rol"                 value={user.role} />
-        <Row icon={CheckCircle} label="Estado"              value={user.status ? 'Activo' : 'Inactivo'} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN PERSONAL" icon={<User style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre completo" value={user.name} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Tipo de documento"   value={user.tipo_documento} />
+            <AdminDetailRow label="Número de documento" value={user.numero_documento} />
+          </AdminDetailGrid>
+          <AdminDetailGrid>
+            <AdminDetailRow label="Teléfono"  value={user.phone} />
+            <AdminDetailRow label="Dirección" value={user.direccion} />
+          </AdminDetailGrid>
+        </AdminDetailSection>
+        <AdminDetailSection title="ACCESO Y ROL" icon={<Shield style={{ width: '20px', height: '20px' }} />} color="blue">
+          <AdminDetailRow label="Correo electrónico" value={user.email} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Rol"    value={user.role} />
+            <AdminDetailRow label="Estado" badge={{ bg: user.status ? '#D1FAE5' : '#FEE2E2', color: user.status ? '#065F46' : '#991B1B', text: user.status ? 'Activo' : 'Inactivo' }} />
+          </AdminDetailGrid>
+        </AdminDetailSection>
       </div>
     );
   }
@@ -330,19 +331,25 @@ export function Usuarios() {
                         </td>
                         <td style={{ padding: '14px 18px' }}>
                           <div style={{ display: 'flex', gap: '4px' }}>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', user)}
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                            </motion.button>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', user)}
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                            </motion.button>
-                            {!user.isAdmin && (
-                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }}
+                            <Tooltip text="Ver información">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', user)}
                                 style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                                <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
                               </motion.button>
+                            </Tooltip>
+                            <Tooltip text="Editar usuario">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', user)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                              </motion.button>
+                            </Tooltip>
+                            {!user.isAdmin && (
+                              <Tooltip text="Eliminar usuario">
+                                <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                  <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                                </motion.button>
+                              </Tooltip>
                             )}
                           </div>
                         </td>

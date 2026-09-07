@@ -23,9 +23,40 @@ const base = (contenido) => `
   </div>
 `;
 
+// ── HELPER: tabla HTML de productos (compatible con clientes de correo) ───────
+
+function tablaProductos(detalle) {
+  // detalle: array de { nombre, cantidad, precio_unitario }
+  // Si no viene o está vacío, retorna cadena vacía
+  if (!Array.isArray(detalle) || detalle.length === 0) return '';
+  const filas = detalle
+    .filter(d => d && d.nombre)
+    .map((item, i) => `
+      <tr style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:10px 12px;color:#6b7280;font-size:13px;text-align:center;">${i + 1}</td>
+        <td style="padding:10px 12px;color:#1f2937;font-size:13px;font-weight:600;">${item.nombre}</td>
+        <td style="padding:10px 12px;color:#4b5563;font-size:13px;text-align:center;">${item.cantidad}</td>
+        <td style="padding:10px 12px;color:#92400e;font-size:13px;font-weight:700;text-align:right;">$${Number(item.precio_unitario || 0).toLocaleString('es-CO')} COP</td>
+      </tr>`)
+    .join('');
+  return `
+    <table style="width:100%;border-collapse:collapse;margin-top:12px;font-family:Arial,sans-serif;">
+      <thead>
+        <tr style="background:#2D4B39;">
+          <th style="padding:10px 12px;color:#fff;font-size:12px;font-weight:600;text-align:center;width:40px;">#</th>
+          <th style="padding:10px 12px;color:#fff;font-size:12px;font-weight:600;text-align:left;">Producto</th>
+          <th style="padding:10px 12px;color:#fff;font-size:12px;font-weight:600;text-align:center;width:70px;">Cant.</th>
+          <th style="padding:10px 12px;color:#fff;font-size:12px;font-weight:600;text-align:right;width:130px;">Precio Unit.</th>
+        </tr>
+      </thead>
+      <tbody style="background:#ffffff;">${filas}</tbody>
+    </table>`;
+}
+
 // ── PEDIDOS ─────────────────────────────────────────────────────────────────
 
-export async function enviarCorreoPedidoEnProduccion({ email, nombre, numeroPedido, producto }) {
+export async function enviarCorreoPedidoEnProduccion({ email, nombre, numeroPedido, producto, detalle }) {
+  const tablaHTML = tablaProductos(detalle);
   await transporter.sendMail({
     from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -34,9 +65,9 @@ export async function enviarCorreoPedidoEnProduccion({ email, nombre, numeroPedi
       <h2 style="color:#2D4B39;margin:0 0 16px;">¡Hola, ${nombre}!</h2>
       <p style="color:#4b5563;line-height:1.6;">Excelentes noticias: tu pago fue verificado y tu pedido ya está siendo elaborado por nuestro equipo artesanal.</p>
       <div style="background:#fef3c7;border-left:4px solid #B8860B;border-radius:8px;padding:16px 20px;margin:20px 0;">
-        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Número de pedido</p>
-        <p style="margin:0;font-size:18px;font-weight:700;color:#92400e;">${numeroPedido}</p>
-        ${producto ? `<p style="margin:8px 0 0;font-size:14px;color:#4b5563;">Producto: <strong>${producto}</strong></p>` : ''}
+        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Número de pedido</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#92400e;">${numeroPedido}</p>
+        ${tablaHTML || (producto ? `<p style="margin:0;font-size:14px;color:#4b5563;">Productos: <strong>${producto}</strong></p>` : '')}
         <p style="margin:12px 0 0;font-size:13px;color:#92400e;font-weight:600;">Estado: ⚙️ En Producción</p>
       </div>
       <p style="color:#4b5563;line-height:1.6;">Cada pieza es elaborada a mano con mucho cuidado. Te notificaremos cuando tu pedido esté listo para entrega.</p>
@@ -45,7 +76,8 @@ export async function enviarCorreoPedidoEnProduccion({ email, nombre, numeroPedi
   });
 }
 
-export async function enviarCorreoPedidoCompletado({ email, nombre, numeroPedido, producto }) {
+export async function enviarCorreoPedidoCompletado({ email, nombre, numeroPedido, producto, detalle }) {
+  const tablaHTML = tablaProductos(detalle);
   await transporter.sendMail({
     from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -54,9 +86,9 @@ export async function enviarCorreoPedidoCompletado({ email, nombre, numeroPedido
       <h2 style="color:#2D4B39;margin:0 0 16px;">¡Hola, ${nombre}!</h2>
       <p style="color:#4b5563;line-height:1.6;">¡Buenas noticias! Tu pedido ha sido <strong>completado</strong> y está siendo despachado hacia ti.</p>
       <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:8px;padding:16px 20px;margin:20px 0;">
-        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Número de pedido</p>
-        <p style="margin:0;font-size:18px;font-weight:700;color:#065f46;">${numeroPedido}</p>
-        ${producto ? `<p style="margin:8px 0 0;font-size:14px;color:#4b5563;">Producto: <strong>${producto}</strong></p>` : ''}
+        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Número de pedido</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#065f46;">${numeroPedido}</p>
+        ${tablaHTML || (producto ? `<p style="margin:0;font-size:14px;color:#4b5563;">Productos: <strong>${producto}</strong></p>` : '')}
         <p style="margin:12px 0 0;font-size:13px;color:#065f46;font-weight:600;">Estado: 🚚 En camino</p>
       </div>
       <p style="color:#4b5563;line-height:1.6;">Tu pieza fue elaborada con mucho cuidado y amor. Pronto la tendrás en tus manos.</p>
@@ -84,25 +116,30 @@ export async function enviarCorreoPedidoEnProceso({ email, nombre, numeroPedido,
   });
 }
 
-export async function enviarCorreoPedidoCancelado({ email, nombre, numeroPedido, producto, motivo }) {
+export async function enviarCorreoPedidoCancelado({ email, nombre, numeroPedido, producto, detalle, motivo }) {
+  const tablaHTML = tablaProductos(detalle);
   await transporter.sendMail({
     from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: `Actualización sobre tu pedido ${numeroPedido}`,
+    subject: `Actualización importante sobre tu pedido ${numeroPedido}`,
     html: base(`
       <h2 style="color:#2D4B39;margin:0 0 16px;">Hola, ${nombre}</h2>
-      <p style="color:#4b5563;line-height:1.6;">Lamentamos informarte que tu pedido ha sido cancelado.</p>
+      <p style="color:#4b5563;line-height:1.6;">Queremos informarte que, tras revisar tu comprobante de pago, tu pedido no pudo ser procesado en esta ocasión.</p>
       <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px 20px;margin:20px 0;">
-        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Número de pedido</p>
-        <p style="margin:0;font-size:18px;font-weight:700;color:#991b1b;">${numeroPedido}</p>
-        ${producto ? `<p style="margin:8px 0 0;font-size:14px;color:#4b5563;">Producto: <strong>${producto}</strong></p>` : ''}
+        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Número de pedido</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#991b1b;">${numeroPedido}</p>
+        ${tablaHTML || (producto ? `<p style="margin:0 0 8px;font-size:14px;color:#4b5563;">Productos: <strong>${producto}</strong></p>` : '')}
         ${motivo ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid #fecaca;">
-          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Motivo de cancelación</p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Motivo del rechazo</p>
           <p style="margin:0;font-size:14px;color:#374151;">${motivo}</p>
         </div>` : ''}
       </div>
-      <p style="color:#4b5563;line-height:1.6;">Si crees que esto es un error o deseas hacer un nuevo pedido, puedes contactarnos o visitar nuestra tienda.</p>
+      <p style="color:#4b5563;line-height:1.6;">Si necesitas información adicional o tienes alguna duda sobre el proceso, no dudes en comunicarte con nosotros. Estamos aquí para ayudarte.</p>
+      <div style="background:#f0fdf4;border-radius:8px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 8px;font-size:14px;color:#2D4B39;font-weight:600;">¿Tienes alguna pregunta?</p>
+        <p style="margin:0;font-size:14px;color:#4b5563;">Puedes contactarnos directamente por WhatsApp o respondiendo a este correo y con gusto te atenderemos.</p>
+      </div>
       <p style="color:#B8860B;font-weight:600;margin-top:24px;">Nudo Studio</p>
     `),
   });

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GraduationCap, Search, Plus, Info, Trash2, Calendar, DollarSign, Users } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { matriculasAPI, estudiantesAPI, talleresAPI } from '../../lib/api';
 
@@ -73,34 +75,24 @@ function ModalAdd({ estudiantes, talleres, onSubmit, onClose }: {
 
 function ModalView({ m }: { m: any }) {
   const b = estadoBadge(m.estado);
-  const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-        <Icon style={{ width: '15px', height: '15px', color: '#fff' }} />
-      </div>
-      <div>
-        <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-      </div>
-    </div>
-  );
   return (
-    <div>
-      <Row icon={Users}      label="Estudiante"    value={m.estudiante} />
-      <Row icon={GraduationCap} label="Taller"     value={m.taller || m.nombre_taller} />
-      <Row icon={Users}      label="Instructor"    value={m.instructor} />
-      <Row icon={Calendar}   label="Fecha taller"  value={m.fecha_taller ? new Date(m.fecha_taller).toLocaleDateString('es-CO') : '—'} />
-      <Row icon={Calendar}   label="Fecha matrícula" value={m.fecha_matricula ? new Date(m.fecha_matricula).toLocaleDateString('es-CO') : '—'} />
-      <Row icon={DollarSign} label="Precio taller" value={`$${Number(m.precio || 0).toLocaleString()} COP`} />
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)' }}>
-        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-          <GraduationCap style={{ width: '15px', height: '15px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '4px' }}>ESTADO</div>
-          <span style={{ padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 700, background: b.bg, color: b.color }}>{b.label}</span>
-        </div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <AdminDetailSection title="DATOS DE LA MATRÍCULA" icon={<GraduationCap style={{ width: '20px', height: '20px' }} />} color="green">
+        <AdminDetailRow label="Estudiante" value={m.estudiante} />
+        <AdminDetailRow label="Taller"     value={m.taller || m.nombre_taller} />
+        <AdminDetailRow label="Instructor" value={m.instructor} />
+        <AdminDetailGrid>
+          <AdminDetailRow label="Fecha del taller"    value={m.fecha_taller ? new Date(m.fecha_taller).toLocaleDateString('es-CO') : '—'} />
+          <AdminDetailRow label="Fecha de matrícula"  value={m.fecha_matricula ? new Date(m.fecha_matricula).toLocaleDateString('es-CO') : '—'} />
+        </AdminDetailGrid>
+        <AdminDetailRow label="Precio del taller" value={`$${Number(m.precio || 0).toLocaleString('es-CO')} COP`} />
+      </AdminDetailSection>
+      <AdminDetailSection title="ESTADO" icon={<GraduationCap style={{ width: '20px', height: '20px' }} />} color="teal">
+        <AdminDetailRow
+          label="Estado de la matrícula"
+          badge={{ bg: b.bg, color: b.color, text: b.label }}
+        />
+      </AdminDetailSection>
     </div>
   );
 }
@@ -247,14 +239,18 @@ export function Matricula() {
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(m); setShowView(true); }}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(m); setShowDeleteModal(true); }}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalles de la matrícula">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(m); setShowView(true); }}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Eliminar matrícula">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(m); setShowDeleteModal(true); }}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                            </motion.button>
+                          </Tooltip>
                         </div>
                       </td>
                     </motion.tr>

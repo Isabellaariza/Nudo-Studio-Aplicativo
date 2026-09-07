@@ -22,6 +22,14 @@ pool.connect(async (err, client, release) => {
     const res = await client.query('SELECT NOW()');
     console.log('✨ ¡Conexión exitosa a la base de datos de Neon! 🪢');
     console.log('⏰ Hora del servidor Postgres:', res.rows[0].now);
+
+    // ── Migraciones automáticas ──────────────────────────────────────────
+    // Agrega columnas nuevas si aún no existen (idempotente: no rompe si ya están)
+    await client.query(`ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion TEXT`);
+    console.log('✅ Migración: clientes.direccion verificada');
+    // Elimina fecha_nacimiento de estudiantes si aún existe
+    await client.query(`ALTER TABLE estudiantes DROP COLUMN IF EXISTS fecha_nacimiento`);
+    console.log('✅ Migración: estudiantes.fecha_nacimiento eliminada (si existía)');
   } catch (queryErr) {
     console.error('❌ Error al ejecutar la consulta de prueba:', queryErr);
   } finally {

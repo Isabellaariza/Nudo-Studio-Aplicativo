@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verificarToken, verificarRol } from '../middleware/auth.js';
 import pool from '../config/db.js';
+import { promoverAEstudiante, revertirACliente } from '../config/rolHelper.js';
 import {
   enviarCorreoMatriculaConfirmada,
   enviarCorreoMatriculaCancelada,
@@ -88,6 +89,9 @@ router.post('/', verificarToken, async (req, res, next) => {
       [monto, id_estudiante]
     );
 
+    // Promover rol a 'estudiante' en usuarios y clientes
+    await promoverAEstudiante(pool, id_estudiante);
+
     res.status(201).json({ mensaje: 'Matrícula registrada', matricula: result.rows[0] });
   } catch (err) { next(err); }
 });
@@ -97,7 +101,7 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
   try {
     // Obtener datos antes de actualizar
     const matRes = await pool.query(`
-      SELECT m.id_matricula, m.estado AS estado_anterior,
+      SELECT m.id_matricula, m.id_estudiante, m.estado AS estado_anterior,
              e.nombre_completo AS estudiante, e.email,
              pt.nombre_taller, pt.precio,
              t.fecha AS fecha_taller, t.hora
@@ -114,6 +118,15 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
       `UPDATE matricula SET estado = COALESCE($1, estado) WHERE id_matricula = $2 RETURNING *`,
       [estado, req.params.id]
     );
+
+    // Si la matrícula se cancela o completa, verificar si el estudiante debe volver a 'cliente'
+    if (estado === 'cancelada' || estado === 'completada') {
+      await revertirACliente(pool, mat.id_estudiante);
+    }
+    // Si se reactiva, promover de nuevo a 'estudiante'
+    if (estado === 'activa') {
+      await promoverAEstudiante(pool, mat.id_estudiante);
+    }
 
     // Enviar correo si cambió el estado y hay email
     if (mat.email && estado !== mat.estado_anterior) {

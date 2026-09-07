@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Search, Plus, Info, Edit, Trash2, User, Mail, Phone, MapPin, ShoppingBag, DollarSign, UserCheck } from 'lucide-react';
+import { Users, Search, Plus, Info, Edit, Trash2, User, Mail, Phone, MapPin, ShoppingBag, UserCheck } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { clientesAPI } from '../../lib/api';
 
@@ -14,38 +16,31 @@ const iStyle = {
 const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' };
 
 interface FormState {
-  nombre_completo: string; email: string; telefono: string; ciudad: string;
+  nombre_completo: string; email: string; telefono: string; direccion: string;
 }
-const emptyForm: FormState = { nombre_completo: '', email: '', telefono: '', ciudad: '' };
+const emptyForm: FormState = { nombre_completo: '', email: '', telefono: '', direccion: '' };
 
 function ModalContent({ type, cliente, form, onChange, onSubmit }: {
   type: 'view' | 'edit' | 'add'; cliente?: any;
   form: FormState; onChange: (f: keyof FormState, v: string) => void; onSubmit: () => void;
 }) {
   if (type === 'view' && cliente) {
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-          <Icon style={{ width: '15px', height: '15px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     return (
-      <div>
-        <Row icon={User}      label="Nombre completo"  value={cliente.nombre_completo} />
-        <Row icon={Mail}      label="Email"             value={cliente.email} />
-        <Row icon={Phone}     label="Teléfono"          value={cliente.telefono} />
-        <Row icon={MapPin}    label="Ciudad"            value={cliente.ciudad} />
-        <Row icon={ShoppingBag} label="Origen"         value={cliente.origen === 'usuario' ? 'Usuario registrado' : 'Cliente directo'} />
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', background: cliente.estado ? '#D1FAE5' : '#FEE2E2', marginTop: '4px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: cliente.estado ? '#065F46' : '#991B1B' }}>
-            {cliente.estado ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN PERSONAL" icon={<User style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre completo" value={cliente.nombre_completo} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Email"    value={cliente.email} />
+            <AdminDetailRow label="Teléfono" value={cliente.telefono} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Dirección" value={cliente.direccion || '—'} />
+        </AdminDetailSection>
+        <AdminDetailSection title="ESTADO" icon={<UserCheck style={{ width: '20px', height: '20px' }} />} color="teal">
+          <AdminDetailRow
+            label="Estado actual"
+            badge={{ bg: cliente.estado ? '#D1FAE5' : '#FEE2E2', color: cliente.estado ? '#065F46' : '#991B1B', text: cliente.estado ? 'Activo' : 'Inactivo' }}
+          />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -60,14 +55,14 @@ function ModalContent({ type, cliente, form, onChange, onSubmit }: {
         <label style={lStyle}>Email</label>
         <input type="email" value={form.email} onChange={e => onChange('email', e.target.value)} placeholder="correo@ejemplo.com" style={iStyle} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div>
           <label style={lStyle}>Teléfono</label>
           <input type="tel" value={form.telefono} onChange={e => onChange('telefono', e.target.value)} placeholder="300 000 0000" style={iStyle} />
         </div>
         <div>
-          <label style={lStyle}>Ciudad</label>
-          <input type="text" value={form.ciudad} onChange={e => onChange('ciudad', e.target.value)} placeholder="Ej: Medellín" style={iStyle} />
+          <label style={lStyle}>Dirección</label>
+          <input type="text" value={form.direccion} onChange={e => onChange('direccion', e.target.value)} placeholder="Ej: Calle 10 # 43-55, Apt 301" style={iStyle} />
         </div>
       </div>
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
@@ -103,7 +98,7 @@ export function Clientes() {
     setModalType(type);
     setSelected(c || null);
     if (type === 'edit' && c) {
-      setForm({ nombre_completo: c.nombre_completo || '', email: c.email || '', telefono: c.telefono || '', ciudad: c.ciudad || '' });
+      setForm({ nombre_completo: c.nombre_completo || '', email: c.email || '', telefono: c.telefono || '', direccion: c.direccion || '' });
     } else if (type === 'add') {
       setForm(emptyForm);
     }
@@ -148,7 +143,7 @@ export function Clientes() {
   const filtered = clientes.filter(c =>
     (c.nombre_completo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.ciudad || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (c.direccion || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const activos = clientes.filter(c => c.estado).length;
@@ -205,8 +200,8 @@ export function Clientes() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#2D4B39', color: '#fff' }}>
               <tr>
-                {['CLIENTE', 'CONTACTO', 'CIUDAD', 'ORIGEN', 'ESTADO', 'ACCIONES'].map(h => (
-                  <th key={h} style={{ padding: '16px 20px', textAlign: ['ORIGEN', 'ESTADO', 'ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                {['CLIENTE', 'CONTACTO', 'DIRECCIÓN', 'ESTADO', 'ACCIONES'].map(h => (
+                  <th key={h} style={{ padding: '16px 20px', textAlign: ['ESTADO', 'ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -228,10 +223,9 @@ export function Clientes() {
                       <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '2px' }}>{c.email || '—'}</div>
                       <div style={{ fontSize: '12px', color: '#9CA3AF' }}>{c.telefono || '—'}</div>
                     </td>
-                    <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280' }}>{c.ciudad || '—'}</td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <span style={{ padding: '4px 12px', borderRadius: '9999px', fontSize: '11px', fontWeight: 600, background: c.origen === 'usuario' ? 'rgba(99,102,241,0.1)' : 'rgba(45,75,57,0.08)', color: c.origen === 'usuario' ? '#6366F1' : '#2D4B39' }}>
-                        {c.origen === 'usuario' ? 'Usuario' : 'Directo'}
+                    <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280', maxWidth: '160px' }}>
+                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.direccion || '—'}
                       </span>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
@@ -242,20 +236,26 @@ export function Clientes() {
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', c)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                        </motion.button>
+                        <Tooltip text="Ver detalles">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', c)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                          </motion.button>
+                        </Tooltip>
                         {c.id_cliente && (
                           <>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', c)}
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                            </motion.button>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(c); setShowDeleteModal(true); }}
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                            </motion.button>
+                            <Tooltip text="Editar cliente">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', c)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                              </motion.button>
+                            </Tooltip>
+                            <Tooltip text="Eliminar cliente">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(c); setShowDeleteModal(true); }}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                              </motion.button>
+                            </Tooltip>
                           </>
                         )}
                       </div>

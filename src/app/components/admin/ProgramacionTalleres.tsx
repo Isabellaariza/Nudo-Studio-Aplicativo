@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Search, Plus, Info, Edit, Trash2, Users, DollarSign } from 'lucide-react';
+import { BookOpen, Search, Plus, Info, Edit, Trash2, Users, DollarSign, User, Package, CheckCircle, XCircle } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { toast } from 'sonner';
 import { programacionAPI, talleresAPI } from '../../lib/api';
@@ -25,24 +26,23 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores }: {
   onSubmit: () => void; instructores: any[];
 }) {
   if (type === 'view' && prog) {
-    const Row = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
-      <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>{label}</div>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: accent ? '#B8860B' : '#2D4B39' }}>{value || '—'}</div>
-      </div>
-    );
     return (
-      <div>
-        <Row label="Nombre del Taller"  value={prog.nombre_taller} />
-        <Row label="Instructor"         value={prog.instructor_nombre || prog.nombre_instructor} />
-        <Row label="Precio"             value={`$${Number(prog.precio).toLocaleString()} COP`} accent />
-        <Row label="Descripción"        value={prog.descripcion} />
-        <Row label="Materiales"         value={`${prog.total_materiales || 0} material(es) asignado(s)`} />
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', background: prog.estado ? '#D1FAE5' : '#FEE2E2', marginTop: '4px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: prog.estado ? '#065F46' : '#991B1B' }}>
-            {prog.estado ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN DEL TALLER" icon={<BookOpen style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre del Taller" value={prog.nombre_taller} />
+          <AdminDetailRow label="Instructor"         value={prog.instructor_nombre || prog.nombre_instructor} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Precio" value={`$${Number(prog.precio).toLocaleString('es-CO')} COP`} />
+            <AdminDetailRow label="Materiales" value={`${prog.total_materiales || 0} asignado(s)`} />
+          </AdminDetailGrid>
+          {prog.descripcion && <AdminDetailRow label="Descripción" value={prog.descripcion} />}
+        </AdminDetailSection>
+        <AdminDetailSection title="ESTADO" icon={<Package style={{ width: '20px', height: '20px' }} />} color="teal">
+          <AdminDetailRow
+            label="Estado"
+            badge={{ bg: prog.estado ? '#D1FAE5' : '#FEE2E2', color: prog.estado ? '#065F46' : '#991B1B', text: prog.estado ? 'Activo' : 'Inactivo' }}
+          />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -261,18 +261,24 @@ export function ProgramacionTalleres() {
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', p)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', p)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(p); setShowDeleteModal(true); }}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                        </motion.button>
+                        <Tooltip text="Ver detalles">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', p)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Editar programación">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', p)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Eliminar programación">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(p); setShowDeleteModal(true); }}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                          </motion.button>
+                        </Tooltip>
                       </div>
                     </td>
                   </motion.tr>

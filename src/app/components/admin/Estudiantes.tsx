@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GraduationCap, Search, Plus, Info, Edit, Trash2, User, Mail, Phone, DollarSign, Calendar } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { estudiantesAPI } from '../../lib/api';
 
@@ -14,46 +16,39 @@ const iStyle = {
 const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' };
 
 interface FormState {
-  nombre_completo: string; email: string; telefono: string; fecha_nacimiento: string;
+  nombre_completo: string; email: string; telefono: string;
 }
-const emptyForm: FormState = { nombre_completo: '', email: '', telefono: '', fecha_nacimiento: '' };
+const emptyForm: FormState = { nombre_completo: '', email: '', telefono: '' };
 
 function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
   type: 'view' | 'edit' | 'add'; estudiante?: any;
   form: FormState; onChange: (f: keyof FormState, v: string) => void; onSubmit: () => void;
 }) {
   if (type === 'view' && estudiante) {
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-          <Icon style={{ width: '15px', height: '15px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     const saldo = Number(estudiante.monto_total || 0) - Number(estudiante.monto_pagado || 0);
     return (
-      <div>
-        <Row icon={User}     label="Nombre completo"  value={estudiante.nombre_completo} />
-        <Row icon={Mail}     label="Email"            value={estudiante.email} />
-        <Row icon={Phone}    label="Teléfono"         value={estudiante.telefono} />
-        <Row icon={Calendar} label="Fecha nacimiento" value={estudiante.fecha_nacimiento ? new Date(estudiante.fecha_nacimiento).toLocaleDateString('es-CO') : '—'} />
-        <Row icon={GraduationCap} label="Matrículas"  value={String(estudiante.total_matriculas || 0)} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
-          <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(16,185,129,0.06)', textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '4px' }}>MONTO TOTAL</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#2D4B39' }}>${Number(estudiante.monto_total || 0).toLocaleString()}</div>
-          </div>
-          <div style={{ padding: '14px', borderRadius: '10px', background: saldo > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)', textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '4px' }}>{saldo > 0 ? 'SALDO PENDIENTE' : 'AL DÍA'}</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: saldo > 0 ? '#EF4444' : '#10B981' }}>
-              {saldo > 0 ? `$${saldo.toLocaleString()}` : '✓'}
-            </div>
-          </div>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN PERSONAL" icon={<User style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre completo"  value={estudiante.nombre_completo} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="Email"    value={estudiante.email} />
+            <AdminDetailRow label="Teléfono" value={estudiante.telefono} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Matrículas" value={String(estudiante.total_matriculas || 0)} />
+        </AdminDetailSection>
+        <AdminDetailSection title="PAGOS" icon={<DollarSign style={{ width: '20px', height: '20px' }} />} color="gold">
+          <AdminDetailGrid>
+            <AdminDetailRow label="Monto total"     value={`$${Number(estudiante.monto_total || 0).toLocaleString('es-CO')} COP`} />
+            <AdminDetailRow label="Monto pagado"    value={`$${Number(estudiante.monto_pagado || 0).toLocaleString('es-CO')} COP`} />
+          </AdminDetailGrid>
+          <AdminDetailRow
+            label="Saldo pendiente"
+            badge={saldo > 0
+              ? { bg: 'rgba(239,68,68,0.08)', color: '#DC2626', text: `$${saldo.toLocaleString('es-CO')} COP pendiente` }
+              : { bg: '#D1FAE5', color: '#065F46', text: 'Al día ✓' }
+            }
+          />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -64,7 +59,7 @@ function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
         <label style={lStyle}>Nombre Completo *</label>
         <input type="text" value={form.nombre_completo} onChange={e => onChange('nombre_completo', e.target.value)} placeholder="Ej: María González" style={iStyle} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
         <div>
           <label style={lStyle}>Email</label>
           <input type="email" value={form.email} onChange={e => onChange('email', e.target.value)} placeholder="maria@email.com" style={iStyle} />
@@ -73,10 +68,6 @@ function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
           <label style={lStyle}>Teléfono</label>
           <input type="tel" value={form.telefono} onChange={e => onChange('telefono', e.target.value)} placeholder="300-123-4567" style={iStyle} />
         </div>
-      </div>
-      <div style={{ marginBottom: '24px' }}>
-        <label style={lStyle}>Fecha de Nacimiento</label>
-        <input type="date" value={form.fecha_nacimiento} onChange={e => onChange('fecha_nacimiento', e.target.value)} style={iStyle} />
       </div>
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
         style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
@@ -115,7 +106,6 @@ export function Estudiantes() {
         nombre_completo: e.nombre_completo || '',
         email: e.email || '',
         telefono: e.telefono || '',
-        fecha_nacimiento: e.fecha_nacimiento ? e.fecha_nacimiento.split('T')[0] : '',
       });
     } else if (type === 'add') {
       setForm(emptyForm);
@@ -263,18 +253,24 @@ export function Estudiantes() {
                       </td>
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', e)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', e)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(e); setShowDeleteModal(true); }}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                          </motion.button>
+                          <Tooltip text="Ver información">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', e)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Editar estudiante">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', e)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Eliminar estudiante">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(e); setShowDeleteModal(true); }}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                            </motion.button>
+                          </Tooltip>
                         </div>
                       </td>
                     </motion.tr>

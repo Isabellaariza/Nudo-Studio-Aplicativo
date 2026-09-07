@@ -704,8 +704,9 @@ export const misMatriculasAPI = {
 
 // Abonos
 export const abonosAPI = {
-  getAll: async () => {
-    const res = await fetchWithAuth(`${API_URL}/abonos`);
+  getAll: async (fecha?: string) => {
+    const url = fecha ? `${API_URL}/abonos?fecha=${fecha}` : `${API_URL}/abonos`;
+    const res = await fetchWithAuth(url);
     if (!res.ok) throw new Error('Error al obtener abonos');
     return res.json();
   },
@@ -765,6 +766,41 @@ export const abonosAPI = {
 // News — el backend no tiene este módulo aún, retorna vacío para no romper el frontend
 export const newsAPI = {
   getAll: async () => ({ news: [] }),
+};
+
+// Descuentos por producto
+export const descuentosAPI = {
+  getAll: async () => {
+    const res = await fetchWithAuth(`${API_URL}/descuentos`);
+    if (!res.ok) throw new Error('Error al obtener descuentos');
+    return res.json();
+  },
+  getActivos: async () => {
+    // Público — no requiere token
+    const res = await fetch(`${API_URL}/descuentos/activos`);
+    if (!res.ok) throw new Error('Error al obtener descuentos activos');
+    return res.json();
+  },
+  getByProducto: async (id_producto: number) => {
+    const res = await fetch(`${API_URL}/descuentos/producto/${id_producto}`);
+    if (!res.ok) throw new Error('Error al obtener descuentos del producto');
+    return res.json();
+  },
+  create: async (data: any) => {
+    const res = await fetchWithAuth(`${API_URL}/descuentos`, { method: 'POST', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  update: async (id: number, data: any) => {
+    const res = await fetchWithAuth(`${API_URL}/descuentos/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  delete: async (id: number) => {
+    const res = await fetchWithAuth(`${API_URL}/descuentos/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
 };
 
 // Notificaciones

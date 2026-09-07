@@ -4,6 +4,7 @@ import { DollarSign, Search, Plus, Info, X, CheckCircle, XCircle, Receipt, Ban, 
 import { toast } from 'sonner';
 import { Modal } from './Modal';
 import { abonosAPI, estudiantesAPI, talleresAPI } from '../../lib/api';
+import { Tooltip } from './Tooltip';
 
 interface Abono {
   id: number;
@@ -33,6 +34,7 @@ export function Abonos() {
   const [talleres, setTalleres]           = useState<any[]>([]);
   const [loading, setLoading]             = useState(true);
   const [searchTerm, setSearchTerm]       = useState('');
+  const [fechaFiltro, setFechaFiltro]     = useState(''); // filtro por día
 
   // modales
   const [showInfoModal, setShowInfoModal]         = useState(false);
@@ -63,7 +65,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
   const cargar = async () => {
     try {
       const [aData, eData, tData] = await Promise.all([
-        abonosAPI.getAll(),
+        abonosAPI.getAll(fechaFiltro || undefined),
         estudiantesAPI.getAll(),
         talleresAPI.getAll(),
       ]);
@@ -97,7 +99,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [fechaFiltro]);
 
   const filtered = abonos.filter(a =>
     a.estudiante.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,15 +211,37 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
             </div>
             <div>
               <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '4px' }}>Gestión de Abonos</h1>
-              <span style={{ fontSize: '14px', color: '#6B7280' }}>{filtered.length} abonos registrados</span>
+              <span style={{ fontSize: '14px', color: '#6B7280' }}>
+                {fechaFiltro ? `Abonos del ${new Date(fechaFiltro + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · ` : ''}
+                {filtered.length} abonos registrados
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Filtro por fecha */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#6B7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Filtrar por día:</label>
+              <input
+                type="date"
+                value={fechaFiltro}
+                onChange={e => setFechaFiltro(e.target.value)}
+                style={{ height: '44px', padding: '0 12px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: fechaFiltro ? 'rgba(184,134,11,0.06)' : '#fff', outline: 'none', color: '#2D4B39', fontWeight: fechaFiltro ? 600 : 400 }}
+              />
+              {fechaFiltro && (
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={() => setFechaFiltro('')}
+                  title="Limpiar filtro de fecha"
+                  style={{ height: '36px', padding: '0 12px', fontSize: '12px', border: '1px solid rgba(184,134,11,0.3)', borderRadius: '10px', background: 'rgba(184,134,11,0.08)', color: '#92400e', cursor: 'pointer', fontWeight: 600 }}>
+                  × Limpiar
+                </motion.button>
+              )}
+            </div>
+            {/* Buscador */}
             <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', width: '18px', color: '#9CA3AF' }} />
               <input type="text" placeholder="Buscar estudiante o taller..." value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: '44px', paddingRight: '16px', height: '44px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: '#fff', width: '300px', outline: 'none' }} />
+                style={{ paddingLeft: '44px', paddingRight: '16px', height: '44px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: '#fff', width: '260px', outline: 'none' }} />
             </div>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={abrirNuevo}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
@@ -295,45 +319,46 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
                       {/* Acciones */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
-                          {/* Ver detalle */}
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(a); setShowInfoModal(true); }}
-                            title="Ver detalle"
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
-
-                          {/* Comprobante */}
-                          {a.comprobante_pago && (
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => setShowComprobante(a.comprobante_pago!)}
-                              title="Ver comprobante"
+                          <Tooltip text="Ver detalle">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(a); setShowInfoModal(true); }}
                               style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Receipt style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
                             </motion.button>
+                          </Tooltip>
+
+                          {a.comprobante_pago && (
+                            <Tooltip text="Ver comprobante de pago">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => setShowComprobante(a.comprobante_pago!)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Receipt style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
 
-                          {/* Aprobar / Rechazar — solo abonos por verificar */}
                           {a.estado === 'por_verificar' && (
                             <>
-                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => handleAprobar(a.id)}
-                                title="Aprobar"
-                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                <CheckCircle style={{ width: '15px', height: '15px', color: '#10B981' }} />
-                              </motion.button>
-                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setRechazarId(a.id); setMotivoSeleccionado(''); setMotivoCustom(''); setShowRechazarModal(true); }}
-                                title="Rechazar"
-                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                <XCircle style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                              </motion.button>
+                              <Tooltip text="Aprobar abono">
+                                <motion.button whileHover={{ scale: 1.15 }} onClick={() => handleAprobar(a.id)}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                  <CheckCircle style={{ width: '15px', height: '15px', color: '#10B981' }} />
+                                </motion.button>
+                              </Tooltip>
+                              <Tooltip text="Rechazar abono">
+                                <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setRechazarId(a.id); setMotivoSeleccionado(''); setMotivoCustom(''); setShowRechazarModal(true); }}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                  <XCircle style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                                </motion.button>
+                              </Tooltip>
                             </>
                           )}
 
-                          {/* Anular */}
                           {(a.estado === 'por_verificar' || a.estado === 'aprobado') && (
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => handleAnular(a.id)}
-                              title="Anular"
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Ban style={{ width: '15px', height: '15px', color: '#9CA3AF' }} />
-                            </motion.button>
+                            <Tooltip text="Anular abono">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => handleAnular(a.id)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Ban style={{ width: '15px', height: '15px', color: '#9CA3AF' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
                         </div>
                       </td>

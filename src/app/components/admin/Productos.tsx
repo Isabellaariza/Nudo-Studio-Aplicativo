@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { productsAPI } from '../../lib/api';
 
 interface Producto {
@@ -23,7 +24,7 @@ interface Producto {
 
 const CLOUDINARY_CLOUD = 'ddcx9ks5g';
 const CLOUDINARY_PRESET = 'nudo_studio';
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 8;
 
 async function subirImagen(file: File): Promise<string> {
   const formData = new FormData();
@@ -296,212 +297,141 @@ const handleShowDetails = (producto: Producto) => {
         </div>
       </motion.div>
 
-      {/* GRID DE PRODUCTOS */}
+      {/* GRID DE PRODUCTOS — mismo estilo visual que la página del cliente, + stock y acciones admin */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '24px'
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '16px 20px',
       }}>
         {currentProductos.map((producto, index) => (
           <motion.div
             key={producto.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
+            className="bg-white rounded-2xl overflow-hidden group"
             style={{
-              background: '#ffffff',
-              borderRadius: '20px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(45, 75, 57, 0.08)',
-              transition: 'all 0.3s ease',
-              border: '1px solid rgba(45, 75, 57, 0.08)'
+              border: '1px solid rgba(45,75,57,0.07)',
+              boxShadow: '0 2px 12px rgba(45,75,57,0.06)',
             }}
+            whileHover={{ y: -4, boxShadow: '0 12px 32px rgba(45,75,57,0.1)' } as any}
           >
-            {/* Imagen del producto */}
-            <div style={{
-              width: '100%',
-              height: '280px',
-              background: producto.imageUrl ? `url(${producto.imageUrl})` : '#F5F5F5',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-end',
-              padding: '16px',
-              position: 'relative'
-            }}>
-              {!producto.imageUrl && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)'
-                }}>
-                  <Package style={{ width: '64px', height: '64px', color: '#D1D5DB' }} />
+            {/* Imagen — igual que ProductsPage (h-60), con badge de stock */}
+            <div className="relative overflow-hidden" style={{ height: '240px', backgroundColor: 'rgba(224,209,192,0.15)' }}>
+              {producto.imageUrl ? (
+                <img
+                  src={producto.imageUrl}
+                  alt={producto.nombre}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package style={{ width: '48px', height: '48px', color: 'rgba(45,75,57,0.15)' }} />
                 </div>
               )}
-              
-              {/* Badge de stock */}
-              <div style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
+              {/* Badge de stock — esquina superior derecha */}
+              <span style={{
+                position: 'absolute', top: '10px', right: '10px',
+                padding: '4px 10px', borderRadius: '9999px',
                 background: getStockBgColor(producto.stock),
                 color: getStockColor(producto.stock),
-                fontSize: '13px',
-                fontWeight: 700,
-                backdropFilter: 'blur(10px)',
+                fontSize: '11px', fontWeight: 700,
                 border: `1px solid ${getStockColor(producto.stock)}`,
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                backdropFilter: 'blur(6px)',
               }}>
                 {producto.stock} en stock
-              </div>
+              </span>
+              {/* Overlay agotado */}
+              {producto.stock === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                  <span className="px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest text-white" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+                    AGOTADO
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Contenido */}
-            <div style={{ padding: '24px' }}>
+            {/* Contenido — mismo layout que ProductsPage */}
+            <div className="p-5">
               {/* Categoría */}
-              <div style={{
-                display: 'inline-block',
-                padding: '6px 14px',
-                borderRadius: '6px',
-                background: 'rgba(184, 134, 11, 0.1)',
-                marginBottom: '12px'
-              }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: '#B8860B',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
+              {producto.categoria && (
+                <span className="text-[10px] tracking-widest uppercase font-medium mb-2 inline-block" style={{ color: '#B8860B' }}>
                   {producto.categoria}
                 </span>
-              </div>
+              )}
 
               {/* Nombre */}
-              <h3 style={{
-                fontSize: '22px',
-                fontWeight: 700,
-                color: '#2D4B39',
-                marginBottom: '8px',
-                lineHeight: '1.3'
-              }}>
+              <h3 className="font-medium mb-1 leading-snug" style={{ color: '#2D4B39', fontSize: '0.95rem' }}>
                 {producto.nombre}
               </h3>
 
-              {/* Descripción */}
-              <p style={{
-                fontSize: '14px',
-                color: '#6B7280',
-                lineHeight: '1.6',
-                marginBottom: '20px',
+              {/* Descripción — 2 líneas, igual que ProductsPage */}
+              <p className="text-xs mb-4 leading-relaxed" style={{
+                color: 'rgba(45,75,57,0.55)',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                minHeight: '2.6em',
               }}>
-                {producto.descripcion}
+                {producto.descripcion || '—'}
               </p>
 
               {/* Precio */}
-              <div style={{
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#B8860B',
-                marginBottom: '24px'
-              }}>
-                ${producto.precio.toLocaleString()} COP
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-elegant text-lg" style={{ color: '#B8860B' }}>
+                  ${producto.precio.toLocaleString('es-CO')}
+                </span>
+                <span className="text-xs" style={{ color: 'rgba(45,75,57,0.4)' }}>COP</span>
               </div>
 
-              {/* Botones de acción */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: '10px'
-              }}>
-                <motion.button
-                  whileHover={{ 
-                    background: 'rgba(45, 75, 57, 0.05)', 
-                    borderColor: '#2D4B39',
-                    scale: 1.02
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleShowDetails(producto)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 16px',
-                    background: '#ffffff',
-                    color: '#2D4B39',
-                    border: '1px solid rgba(45, 75, 57, 0.15)',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Info style={{ width: '16px', height: '16px' }} />
-                  Ver
-                </motion.button>
+              {/* Botones admin — compactos, en lugar del botón de carrito */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <Tooltip text="Ver detalles del producto">
+                  <motion.button
+                    whileHover={{ backgroundColor: 'rgba(45,75,57,0.07)' }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleShowDetails(producto)}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                      padding: '8px', borderRadius: '9999px', border: '1px solid rgba(45,75,57,0.15)',
+                      background: '#fff', color: '#2D4B39', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Info style={{ width: '13px', height: '13px' }} />
+                    Ver
+                  </motion.button>
+                </Tooltip>
 
-                <motion.button
-                  whileHover={{ 
-                    background: 'rgba(184, 134, 11, 0.05)', 
-                    borderColor: '#B8860B',
-                    scale: 1.02
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleEdit(producto)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 16px',
-                    background: '#ffffff',
-                    color: '#B8860B',
-                    border: '1px solid rgba(184, 134, 11, 0.15)',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Edit style={{ width: '16px', height: '16px' }} />
-                  Editar
-                </motion.button>
+                <Tooltip text="Editar producto">
+                  <motion.button
+                    whileHover={{ backgroundColor: 'rgba(184,134,11,0.07)' }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleEdit(producto)}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                      padding: '8px', borderRadius: '9999px', border: '1px solid rgba(184,134,11,0.2)',
+                      background: '#fff', color: '#B8860B', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Edit style={{ width: '13px', height: '13px' }} />
+                    Editar
+                  </motion.button>
+                </Tooltip>
 
-                <motion.button
-                  whileHover={{ 
-                    background: 'rgba(239, 68, 68, 0.05)', 
-                    borderColor: '#EF4444',
-                    scale: 1.02
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleDelete(producto)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 16px',
-                    background: '#ffffff',
-                    color: '#EF4444',
-                    border: '1px solid rgba(239, 68, 68, 0.15)',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Trash2 style={{ width: '16px', height: '16px' }} />
-                  Eliminar
-                </motion.button>
+                <Tooltip text="Eliminar producto">
+                  <motion.button
+                    whileHover={{ backgroundColor: 'rgba(239,68,68,0.07)' }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleDelete(producto)}
+                    style={{
+                      padding: '8px 10px', borderRadius: '9999px', border: '1px solid rgba(239,68,68,0.2)',
+                      background: '#fff', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    }}
+                  >
+                    <Trash2 style={{ width: '13px', height: '13px' }} />
+                  </motion.button>
+                </Tooltip>
               </div>
             </div>
           </motion.div>

@@ -104,7 +104,8 @@ const menuItems: MenuItem[] = [
       { id: 'ventas', label: 'Ventas' },
       { id: 'clientes', label: 'Clientes' },
       { id: 'pedidos', label: 'Pedidos' },
-      { id: 'abonos', label: 'Abonos' }
+      { id: 'abonos', label: 'Abonos' },
+      { id: 'descuentos', label: 'Descuentos' }
     ]
   }
 ];

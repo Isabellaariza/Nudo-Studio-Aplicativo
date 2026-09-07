@@ -1,17 +1,32 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, Search, Info, X, ShoppingBag, DollarSign, CheckCircle, XCircle, Clock, User, Ban, FileDown, Calendar } from 'lucide-react';
+import { TrendingUp, Search, Info, ShoppingBag, DollarSign, CheckCircle, XCircle, Clock, User, Ban, FileDown, Calendar } from 'lucide-react';
 import jsPDF from 'jspdf';
-import { Modal } from './Modal';
+import { AdminDetailModal, AdminDetailSection, AdminDetailRow, AdminDetailGrid, AdminProductTable } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { ventasAPI } from '../../lib/api';
+
+/** Parsea STRING_AGG "Prod A (3), Prod B (2)" → array para tabla */
+function parsearProductosVenta(productoStr: string): { nombre: string; cantidad: number; precio_unitario?: number }[] {
+  if (!productoStr) return [];
+  // Si es un string de abono (no contiene paréntesis con número), devuelve como fila única
+  if (!productoStr.includes('(')) return [{ nombre: productoStr, cantidad: 1 }];
+  return productoStr.split(',').map(item => {
+    const t = item.trim();
+    const m = t.match(/^(.+)\s*\((\d+)\)$/);
+    if (m) return { nombre: m[1].trim(), cantidad: parseInt(m[2]) };
+    return { nombre: t, cantidad: 1 };
+  }).filter(d => d.nombre);
+}
 
 type EstadoVenta = 'Pendiente' | 'Completada' | 'Cancelada';
 
 interface Venta {
   id: number;
-  numeroPedido: string;
+  numeroPedido: string;   // VTA-XXXX
+  idPedido: number | null; // id_pedidos real (null para abonos de taller)
   fecha: string;
   cliente: string;
   empleado: string;
@@ -20,6 +35,7 @@ interface Venta {
   total: number;
   estado: EstadoVenta;
   estadoRaw: boolean | null;
+  detalle: { nombre: string; cantidad: number; precio_unitario: number; imagen_url?: string }[];
 }
 
 const estadoStyle = (estado: EstadoVenta) => {
@@ -45,10 +61,10 @@ function ViewModal({ venta, onClose, onAnular, onCompletar }: {
   const canComplete = venta.estado === 'Pendiente';
   const canCancel   = venta.estado === 'Pendiente';
 
-  const Row = ({ icon: I, label, value }: { icon: any; label: string; value: string }) => (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 }}>
-        <I style={{ width: '15px', height: '15px', color: '#fff' }} />
+  const InfoRow = ({ icon: I, label, value }: { icon: any; label: string; value: string }) => (
+    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
+      <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '14px', flexShrink: 0 }}>
+        <I style={{ width: '16px', height: '16px', color: '#fff' }} />
       </div>
       <div>
         <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
@@ -58,23 +74,43 @@ function ViewModal({ venta, onClose, onAnular, onCompletar }: {
   );
 
   return (
-    <div>
-      <Row icon={User}        label="Cliente"    value={venta.cliente} />
-      <Row icon={ShoppingBag} label="Producto"   value={venta.producto} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-        <Row icon={TrendingUp} label="Cantidad"  value={String(venta.cantidad)} />
-        <Row icon={DollarSign} label="Total"     value={`$${Number(venta.total).toLocaleString()} COP`} />
-      </div>
-      <Row icon={Calendar}    label="Fecha"      value={venta.fecha ? new Date(venta.fecha).toLocaleDateString('es-CO') : '—'} />
-      <Row icon={User}        label="Empleado"   value={venta.empleado} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* Estado badge */}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '9999px', background: s.bg, marginBottom: '24px' }}>
-        <Icon style={{ width: '14px', height: '14px', color: s.color }} />
-        <span style={{ fontSize: '13px', fontWeight: 700, color: s.color }}>{venta.estado}</span>
+      {/* CLIENTE Y VENTA */}
+      <div style={{ padding: '20px', background: 'rgba(45,75,57,0.05)', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <User style={{ width: '20px', height: '20px', color: '#2D4B39' }} />
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', letterSpacing: '0.04em' }}>INFORMACIÓN DE LA VENTA</span>
+        </div>
+        <InfoRow icon={User}        label="Cliente"       value={venta.cliente} />
+        <InfoRow icon={ShoppingBag} label="N° Venta"      value={venta.numeroPedido} />
+        <InfoRow icon={Calendar}    label="Fecha"         value={venta.fecha ? new Date(venta.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'} />
+        <InfoRow icon={User}        label="Empleado"      value={venta.empleado} />
       </div>
 
-      {/* Acciones */}
+      {/* PRODUCTO Y MONTO */}
+      <div style={{ padding: '20px', background: 'rgba(184,134,11,0.05)', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <ShoppingBag style={{ width: '20px', height: '20px', color: '#B8860B' }} />
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', letterSpacing: '0.04em' }}>DETALLE DEL PRODUCTO</span>
+        </div>
+        <InfoRow icon={ShoppingBag} label="Producto"    value={venta.producto} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <InfoRow icon={TrendingUp} label="Cantidad"   value={String(venta.cantidad)} />
+          <InfoRow icon={DollarSign} label="Total"      value={`$${Number(venta.total).toLocaleString('es-CO')} COP`} />
+        </div>
+      </div>
+
+      {/* ESTADO */}
+      <div style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(16,185,129,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39' }}>ESTADO</span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 16px', borderRadius: '9999px', background: s.bg }}>
+          <Icon style={{ width: '14px', height: '14px', color: s.color }} />
+          <span style={{ fontSize: '13px', fontWeight: 700, color: s.color }}>{venta.estado}</span>
+        </div>
+      </div>
+
+      {/* ACCIONES */}
       {(canComplete || canCancel) && (
         <div style={{ display: 'flex', gap: '10px' }}>
           {canComplete && (
@@ -110,6 +146,7 @@ export function Ventas() {
       setVentas(data.ventas.map((v: any): Venta => ({
         id: v.id_ventas,
         numeroPedido: `VTA-${String(v.id_ventas).padStart(4, '0')}`,
+        idPedido: v.id_pedidos ?? null,
         fecha: v.fecha || '',
         cliente: v.cliente || '—',
         empleado: v.empleado || '—',
@@ -118,6 +155,7 @@ export function Ventas() {
         total: Number(v.total) || 0,
         estadoRaw: v.estado,
         estado: mapEstado(v.estado),
+        detalle: Array.isArray(v.detalle) ? v.detalle.filter((d: any) => d.nombre) : [],
       })));
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar ventas');
@@ -238,7 +276,7 @@ export function Ventas() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#2D4B39', color: '#fff' }}>
               <tr>
-                {['N° VENTA', 'FECHA', 'CLIENTE', 'PRODUCTO', 'CANT.', 'TOTAL', 'ESTADO', 'ACCIONES'].map(h => (
+                {['N° VENTA', 'PEDIDO', 'FECHA', 'CLIENTE', 'CANT.', 'TOTAL', 'ESTADO', 'ACCIONES'].map(h => (
                   <th key={h} style={{ padding: '16px 20px', textAlign: ['CANT.', 'TOTAL', 'ESTADO', 'ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -255,11 +293,20 @@ export function Ventas() {
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39' }}>{v.numeroPedido}</div>
                       </td>
+                      {/* ID PEDIDO */}
+                      <td style={{ padding: '16px 20px' }}>
+                        {v.idPedido ? (
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#92400E', background: 'rgba(184,134,11,0.08)', padding: '3px 8px', borderRadius: '6px' }}>
+                            PED-{String(v.idPedido).padStart(4, '0')}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#9CA3AF', fontStyle: 'italic' }}>Abono</span>
+                        )}
+                      </td>
                       <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280' }}>
                         {v.fecha ? new Date(v.fecha).toLocaleDateString('es-CO') : '—'}
                       </td>
                       <td style={{ padding: '16px 20px', fontSize: '13px', color: '#374151', fontWeight: 500 }}>{v.cliente}</td>
-                      <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280' }}>{v.producto}</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: '#2D4B39' }}>{v.cantidad}</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', fontSize: '14px', fontWeight: 700, color: '#B8860B' }}>
                         ${Number(v.total).toLocaleString()}
@@ -272,20 +319,26 @@ export function Ventas() {
                       </td>
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(v); setShowViewModal(true); }}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
-                          {v.estado === 'Pendiente' && (
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToCancel(v); setShowDeleteModal(true); }}
+                          <Tooltip text="Ver detalles">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setSelected(v); setShowViewModal(true); }}
                               style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Ban style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
                             </motion.button>
+                          </Tooltip>
+                          {v.estado === 'Pendiente' && (
+                            <Tooltip text="Cancelar venta">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToCancel(v); setShowDeleteModal(true); }}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Ban style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => descargarPDF(v)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <FileDown style={{ width: '15px', height: '15px', color: '#2D4B39' }} />
-                          </motion.button>
+                          <Tooltip text="Descargar PDF">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => descargarPDF(v)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <FileDown style={{ width: '15px', height: '15px', color: '#2D4B39' }} />
+                            </motion.button>
+                          </Tooltip>
                         </div>
                       </td>
                     </motion.tr>
@@ -302,16 +355,73 @@ export function Ventas() {
         )}
       </motion.div>
 
-      {/* MODAL VER + ACCIONES */}
+      {/* MODAL VER — usa AdminDetailModal */}
       {showViewModal && selected && (
-        <Modal isOpen={true} onClose={() => setShowViewModal(false)} title={`Detalle — ${selected.numeroPedido}`}>
-          <ViewModal
-            venta={selected}
-            onClose={() => setShowViewModal(false)}
-            onCompletar={() => handleCompletar(selected)}
-            onAnular={() => { setToCancel(selected); setShowViewModal(false); setShowDeleteModal(true); }}
-          />
-        </Modal>
+        <AdminDetailModal
+          isOpen={true}
+          onClose={() => setShowViewModal(false)}
+          title={`Detalle — ${selected.numeroPedido}`}
+          maxWidth="560px"
+        >
+          {/* Sección información de la venta */}
+          <AdminDetailSection title="INFORMACIÓN DE LA VENTA" icon={<User style={{ width: '20px', height: '20px' }} />} color="green">
+            <AdminDetailRow label="Cliente"  value={selected.cliente} />
+            <AdminDetailGrid>
+              <AdminDetailRow label="N° Venta" value={selected.numeroPedido} />
+              <AdminDetailRow
+                label="Pedido relacionado"
+                value={selected.idPedido ? `PED-${String(selected.idPedido).padStart(4, '0')}` : 'Abono de taller'}
+              />
+            </AdminDetailGrid>
+            <AdminDetailGrid>
+              <AdminDetailRow label="Fecha"    value={selected.fecha ? new Date(selected.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'} />
+              <AdminDetailRow label="Empleado" value={selected.empleado} />
+            </AdminDetailGrid>
+            <AdminDetailGrid>
+              <AdminDetailRow label="Cantidad total" value={String(selected.cantidad)} />
+              <AdminDetailRow label="Total"           value={`$${Number(selected.total).toLocaleString('es-CO')} COP`} />
+            </AdminDetailGrid>
+          </AdminDetailSection>
+
+          {/* Sección DETALLE DEL PEDIDO — tabla con items */}
+          <AdminDetailSection title="DETALLE DEL PEDIDO" icon={<ShoppingBag style={{ width: '20px', height: '20px' }} />} color="gold">
+            {selected.detalle.length > 0 ? (
+              <AdminProductTable items={selected.detalle} showPrice={true} />
+            ) : (
+              /* Fallback: parsear el string si no hay detalle estructurado (ej. abonos de taller) */
+              (() => {
+                const items = parsearProductosVenta(selected.producto || '');
+                return items.length > 1
+                  ? <AdminProductTable items={items} showPrice={false} />
+                  : <AdminDetailRow label="Descripción" value={selected.producto} />;
+              })()
+            )}
+          </AdminDetailSection>
+
+          {/* Estado */}
+          <AdminDetailSection title="ESTADO" icon={<TrendingUp style={{ width: '20px', height: '20px' }} />} color="teal">
+            <AdminDetailRow
+              label="Estado actual"
+              badge={(() => { const s = estadoStyle(selected.estado); return { bg: s.bg, color: s.color, text: selected.estado }; })()}
+            />
+          </AdminDetailSection>
+
+          {/* Acciones */}
+          {(selected.estado === 'Pendiente') && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                onClick={() => handleCompletar(selected)}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#065F46,#047857)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <CheckCircle style={{ width: '15px', height: '15px' }} /> Marcar Completada
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                onClick={() => { setToCancel(selected); setShowViewModal(false); setShowDeleteModal(true); }}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'rgba(239,68,68,0.1)', color: '#DC2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Ban style={{ width: '15px', height: '15px' }} /> Cancelar Venta
+              </motion.button>
+            </div>
+          )}
+        </AdminDetailModal>
       )}
 
       {/* MODAL CONFIRMAR CANCELACIÓN */}

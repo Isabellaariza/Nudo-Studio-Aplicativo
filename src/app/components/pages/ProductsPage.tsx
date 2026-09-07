@@ -79,7 +79,13 @@ export function ProductsPage({ user, onNavigate, onCartUpdate }: ProductsPagePro
   const displayedProducts = filtered.slice(0, visibleCount);
 
   const handleAddToCart = (product: any) => {
-    // ELIMINADO: Ya no bloqueamos si !user para que puedan cotizar libremente
+    if (!user) {
+      toast.error('Debes iniciar sesión para agregar productos al carrito', {
+        action: { label: 'Iniciar sesión', onClick: () => onNavigate('login') },
+        duration: 5000,
+      });
+      return;
+    }
     if (product.stock === 0) return;
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
     const idx = cart.findIndex((i: any) => i.id === String(product.id_productos));

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Search, Plus, Info, Edit, Trash2, DollarSign, Calendar, FileText, CheckCircle, XCircle, Image, X, Package } from 'lucide-react';
 import { Modal } from './Modal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { comprasAPI, proveedoresAPI } from '../../lib/api';
 
@@ -276,22 +277,25 @@ export function Compras() {
 
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', c)}
-                            title="Ver detalle"
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalle">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', c)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
                           {c.estado && <>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', c)}
-                              title="Editar"
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                            </motion.button>
-                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(c); setShowDeleteModal(true); }}
-                              title="Anular"
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                              <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                            </motion.button>
+                            <Tooltip text="Editar compra">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', c)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                              </motion.button>
+                            </Tooltip>
+                            <Tooltip text="Anular compra">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(c); setShowDeleteModal(true); }}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                              </motion.button>
+                            </Tooltip>
                           </>}
                         </div>
                       </td>

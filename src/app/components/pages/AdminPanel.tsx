@@ -19,6 +19,7 @@ import { MaterialesTalleres } from '../admin/MaterialesTalleres';
 import { ProgramacionTalleres } from '../admin/ProgramacionTalleres';
 import { Matricula } from '../admin/Matricula';
 import { Abonos } from '../admin/Abonos';
+import { Descuentos } from '../admin/Descuentos';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { GestionConfiguracion } from '../admin/Configuracion';
 import { Smartphone } from 'lucide-react';
@@ -70,6 +71,7 @@ export function AdminPanel({ user, activeSection: externalSection, onNavigate: e
       case 'compras':              return <Compras />;
       case 'ventas':               return <Ventas />;
       case 'abonos':               return <Abonos />;
+      case 'descuentos':           return <Descuentos />;
       default:                     return <Dashboard onNavigate={setActiveSection} />;
     }
   };

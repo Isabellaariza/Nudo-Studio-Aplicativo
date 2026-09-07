@@ -126,10 +126,11 @@ export async function completarTaller(req, res, next) {
       `UPDATE talleres SET estado_sesion = 'COMPLETADO', estado = FALSE WHERE id_talleres = $1`, [id]
     );
 
-    // Devolver estudiantes del taller al rol 'cliente'
+    // Devolver estudiantes del taller al rol 'cliente' (en usuarios Y clientes)
     const rolClienteRes = await client.query(`SELECT id_rol FROM roles WHERE LOWER(nombre) = 'cliente' LIMIT 1`);
     if (rolClienteRes.rows.length) {
       const id_rol_cliente = rolClienteRes.rows[0].id_rol;
+      // Revertir en usuarios
       await client.query(`
         UPDATE usuarios u
         SET id_rol = $1
@@ -138,6 +139,16 @@ export async function completarTaller(req, res, next) {
         WHERE m.id_programacion = $2
           AND est.id_usuarios IS NOT NULL
           AND u.id_usuarios = est.id_usuarios
+      `, [id_rol_cliente, id]);
+      // Sincronizar en clientes
+      await client.query(`
+        UPDATE clientes c
+        SET id_rol = $1
+        FROM estudiantes est
+        JOIN matricula m ON m.id_estudiante = est.id_estudiante
+        WHERE m.id_programacion = $2
+          AND est.id_usuarios IS NOT NULL
+          AND c.id_usuarios = est.id_usuarios
       `, [id_rol_cliente, id]);
     }
 

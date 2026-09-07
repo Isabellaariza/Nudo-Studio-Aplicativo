@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Truck, Search, Plus, Info, Edit, Trash2, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { proveedoresAPI } from '../../lib/api';
 
@@ -23,35 +25,28 @@ function ModalContent({ type, proveedor, form, onChange, onSubmit }: {
   form: FormState; onChange: (f: keyof FormState, v: string) => void; onSubmit: () => void;
 }) {
   if (type === 'view' && proveedor) {
-    const Row = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', borderRadius: '12px', background: 'rgba(45,75,57,0.03)', marginBottom: '10px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '14px', flexShrink: 0 }}>
-          <Icon style={{ width: '16px', height: '16px', color: '#fff' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{value || '—'}</div>
-        </div>
-      </div>
-    );
     return (
-      <div>
-        <Row icon={Building2} label="Nombre de empresa"  value={proveedor.nombre_empresa} />
-        <Row icon={FileText}  label="NIT"                value={proveedor.nit} />
-        <Row icon={Mail}      label="Email"              value={proveedor.email} />
-        <Row icon={Phone}     label="Teléfono"           value={proveedor.telefono} />
-        <Row icon={MapPin}    label="Dirección"          value={proveedor.direccion} />
-        <div style={{ marginTop: '12px', padding: '12px 16px', borderRadius: '12px', background: proveedor.estado ? '#ECFDF5' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: proveedor.estado ? '#10B981' : '#EF4444' }} />
-          <span style={{ fontSize: '14px', fontWeight: 600, color: proveedor.estado ? '#065F46' : '#991B1B' }}>
-            {proveedor.estado ? 'Activo' : 'Inactivo'}
-          </span>
-          {proveedor.total_compras > 0 && (
-            <span style={{ marginLeft: 'auto', fontSize: '13px', color: '#6B7280' }}>
-              {proveedor.total_compras} compra(s) registradas
-            </span>
-          )}
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="INFORMACIÓN DE LA EMPRESA" icon={<Truck style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Nombre de empresa" value={proveedor.nombre_empresa} />
+          <AdminDetailGrid>
+            <AdminDetailRow label="NIT"      value={proveedor.nit} />
+            <AdminDetailRow label="Teléfono" value={proveedor.telefono} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Email"    value={proveedor.email} />
+          <AdminDetailRow label="Dirección" value={proveedor.direccion} />
+        </AdminDetailSection>
+        <AdminDetailSection title="ESTADO" icon={<Building2 style={{ width: '20px', height: '20px' }} />} color="teal">
+          <AdminDetailGrid>
+            <AdminDetailRow
+              label="Estado"
+              badge={{ bg: proveedor.estado ? '#D1FAE5' : '#FEE2E2', color: proveedor.estado ? '#065F46' : '#991B1B', text: proveedor.estado ? 'Activo' : 'Inactivo' }}
+            />
+            {proveedor.total_compras > 0 && (
+              <AdminDetailRow label="Compras registradas" value={`${proveedor.total_compras}`} />
+            )}
+          </AdminDetailGrid>
+        </AdminDetailSection>
       </div>
     );
   }
@@ -239,18 +234,24 @@ export function Proveedores() {
                       </td>
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', p)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', p)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                          </motion.button>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(p); setShowDeleteModal(true); }}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalles">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', p)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Editar proveedor">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', p)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                            </motion.button>
+                          </Tooltip>
+                          <Tooltip text="Eliminar proveedor">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(p); setShowDeleteModal(true); }}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                            </motion.button>
+                          </Tooltip>
                         </div>
                       </td>
                     </motion.tr>

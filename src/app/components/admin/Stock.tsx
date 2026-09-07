@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PackageSearch, Search, Plus, Info, Edit, Trash2, AlertTriangle, ChevronLeft, ChevronRight, X, History, ArrowUpCircle, ArrowDownCircle, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { insumosAPI, categoriasInsumosAPI, proveedoresAPI, comprasAPI } from '../../lib/api';
 
 interface Material {
@@ -562,45 +563,53 @@ export function Stock() {
                 gridTemplateColumns: '1fr 1fr 1fr 1fr',
                 gap: '8px'
               }}>
-                <motion.button
-                  whileHover={{ background: 'rgba(45, 75, 57, 0.05)', borderColor: '#2D4B39', scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleShowInfo(material)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#2D4B39', border: '1px solid rgba(45, 75, 57, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Info style={{ width: '14px', height: '14px' }} />
-                  Ver
-                </motion.button>
+                <Tooltip text="Ver detalles del insumo">
+                  <motion.button
+                    whileHover={{ background: 'rgba(45, 75, 57, 0.05)', borderColor: '#2D4B39', scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleShowInfo(material)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#2D4B39', border: '1px solid rgba(45, 75, 57, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    <Info style={{ width: '14px', height: '14px' }} />
+                    Ver
+                  </motion.button>
+                </Tooltip>
 
-                <motion.button
-                  whileHover={{ background: 'rgba(99, 102, 241, 0.05)', borderColor: '#6366F1', scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleVerMovimientos(material)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#6366F1', border: '1px solid rgba(99, 102, 241, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <History style={{ width: '14px', height: '14px' }} />
-                  Kardex
-                </motion.button>
+                <Tooltip text="Ver historial de movimientos">
+                  <motion.button
+                    whileHover={{ background: 'rgba(99, 102, 241, 0.05)', borderColor: '#6366F1', scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleVerMovimientos(material)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#6366F1', border: '1px solid rgba(99, 102, 241, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    <History style={{ width: '14px', height: '14px' }} />
+                    Kardex
+                  </motion.button>
+                </Tooltip>
 
-                <motion.button
-                  whileHover={{ background: 'rgba(184, 134, 11, 0.05)', borderColor: '#B8860B', scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleEdit(material)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#B8860B', border: '1px solid rgba(184, 134, 11, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Edit style={{ width: '14px', height: '14px' }} />
-                  Editar
-                </motion.button>
+                <Tooltip text="Editar datos del insumo">
+                  <motion.button
+                    whileHover={{ background: 'rgba(184, 134, 11, 0.05)', borderColor: '#B8860B', scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEdit(material)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#B8860B', border: '1px solid rgba(184, 134, 11, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    <Edit style={{ width: '14px', height: '14px' }} />
+                    Editar
+                  </motion.button>
+                </Tooltip>
 
-                <motion.button
-                  whileHover={{ background: 'rgba(239, 68, 68, 0.05)', borderColor: '#EF4444', scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleDelete(material)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Trash2 style={{ width: '14px', height: '14px' }} />
-                  Eliminar
-                </motion.button>
+                <Tooltip text="Eliminar insumo">
+                  <motion.button
+                    whileHover={{ background: 'rgba(239, 68, 68, 0.05)', borderColor: '#EF4444', scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleDelete(material)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 8px', background: '#ffffff', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    <Trash2 style={{ width: '14px', height: '14px' }} />
+                    Eliminar
+                  </motion.button>
+                </Tooltip>
               </div>
             </motion.div>
           );

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Tag, Search, Plus, Info, Edit, Trash2, AlignLeft, Layout, Package } from 'lucide-react';
 import { Modal } from './Modal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { categoriasProductosAPI } from '../../lib/api';
 
@@ -221,18 +222,24 @@ export function CategoriaProductos() {
                     </td>
                     <td style={{ padding: '18px 24px' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', cat)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', cat)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(cat); setShowDeleteModal(true); }}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                        </motion.button>
+                        <Tooltip text="Ver información">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', cat)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Editar categoría">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', cat)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Eliminar categoría">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(cat); setShowDeleteModal(true); }}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                          </motion.button>
+                        </Tooltip>
                       </div>
                     </td>
                   </motion.tr>

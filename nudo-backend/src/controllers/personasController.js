@@ -6,17 +6,22 @@ import pool from '../config/db.js';
 export async function listarClientes(req, res, next) {
   try {
     const { buscar } = req.query;
-    // Clientes registrados en tabla clientes
+    // Clientes registrados en tabla clientes — trae direccion desde usuarios via JOIN
     let q1 = `
       SELECT c.id_cliente, c.nombre_completo, c.email, c.telefono,
-             c.ciudad, c.estado, c.id_usuarios, r.nombre AS rol, 'cliente' AS origen
+             c.estado, c.id_usuarios, r.nombre AS rol,
+             COALESCE(c.direccion, u.direccion) AS direccion,
+             'cliente' AS origen
       FROM clientes c
       LEFT JOIN roles r ON c.id_rol = r.id_rol
+      LEFT JOIN usuarios u ON u.id_usuarios = c.id_usuarios
     `;
     // Usuarios con rol cliente que aún no tienen fila en clientes
     let q2 = `
       SELECT NULL AS id_cliente, u.nombre AS nombre_completo, u.email, u.telefono,
-             NULL AS ciudad, u.estado, u.id_usuarios, r.nombre AS rol, 'usuario' AS origen
+             u.estado, u.id_usuarios, r.nombre AS rol,
+             u.direccion AS direccion,
+             'usuario' AS origen
       FROM usuarios u
       LEFT JOIN roles r ON r.id_rol = u.id_rol
       WHERE r.nombre ILIKE 'cliente'
@@ -47,32 +52,32 @@ export async function obtenerCliente(req, res, next) {
 }
 
 export async function crearCliente(req, res, next) {
-  const { nombre_completo, email, telefono, ciudad } = req.body;
+  const { nombre_completo, email, telefono, direccion } = req.body;
   if (!nombre_completo) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
   try {
     const rolResult = await pool.query(`SELECT id_rol FROM roles WHERE nombre = 'cliente' LIMIT 1`);
     const id_rol = rolResult.rows[0]?.id_rol || null;
     const result = await pool.query(
-      `INSERT INTO clientes (nombre_completo, email, telefono, ciudad, estado, id_rol)
+      `INSERT INTO clientes (nombre_completo, email, telefono, direccion, estado, id_rol)
        VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING *`,
-      [nombre_completo, email, telefono, ciudad, id_rol]
+      [nombre_completo, email, telefono, direccion, id_rol]
     );
     res.status(201).json({ mensaje: 'Cliente creado', cliente: result.rows[0] });
   } catch (err) { next(err); }
 }
 
 export async function actualizarCliente(req, res, next) {
-  const { nombre_completo, email, telefono, ciudad, estado } = req.body;
+  const { nombre_completo, email, telefono, direccion, estado } = req.body;
   try {
     const result = await pool.query(
       `UPDATE clientes SET
          nombre_completo = COALESCE($1, nombre_completo),
          email           = COALESCE($2, email),
          telefono        = COALESCE($3, telefono),
-         ciudad          = COALESCE($4, ciudad),
+         direccion       = $4,
          estado          = COALESCE($5, estado)
        WHERE id_cliente = $6 RETURNING *`,
-      [nombre_completo, email, telefono, ciudad, estado, req.params.id]
+      [nombre_completo, email, telefono, direccion ?? null, estado, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     res.json({ mensaje: 'Cliente actualizado', cliente: result.rows[0] });

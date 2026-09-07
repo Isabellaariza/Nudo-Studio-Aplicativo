@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { verificarToken, verificarRol } from '../middleware/auth.js';
 import { listarTalleres, crearTaller, actualizarTaller, eliminarTaller, listarInstructores, completarTaller } from '../controllers/talleresController.js';
 import pool from '../config/db.js';
+import { promoverAEstudiante } from '../config/rolHelper.js';
 
 const router = Router();
 router.get('/instructores', verificarToken, listarInstructores);
@@ -56,6 +57,10 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
        VALUES ($1, $2, $3, CURRENT_DATE, 'pendiente') RETURNING *`,
       [id_estudiante, id_taller, nombre_taller]
     );
+
+    // Promover rol a 'estudiante' en usuarios y clientes
+    await promoverAEstudiante(pool, id_estudiante);
+
     res.status(201).json({ mensaje: 'Inscripción registrada.', matricula: result.rows[0] });
   } catch (err) { next(err); }
 });

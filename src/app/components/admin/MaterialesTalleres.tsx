@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, Search, Plus, Info, Edit, Trash2 } from 'lucide-react';
+import { Package, Search, Plus, Info, Edit, Trash2, DollarSign, Layers, MapPin, User, CheckCircle, XCircle } from 'lucide-react';
 import { Modal } from './Modal';
+import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
+import { Tooltip } from './Tooltip';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { toast } from 'sonner';
 import { materialesAPI, proveedoresAPI, programacionAPI } from '../../lib/api';
@@ -29,27 +31,26 @@ function ModalContent({ type, material, form, onChange, onSubmit, proveedores, p
   onSubmit: () => void; proveedores: any[]; programaciones: any[]; insumos: any[];
 }) {
   if (type === 'view' && material) {
-    const Row = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
-      <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.03)', marginBottom: '8px' }}>
-        <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>{label}</div>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: accent ? '#B8860B' : '#2D4B39' }}>{value || '—'}</div>
-      </div>
-    );
     return (
-      <div>
-        <Row label="Material (Insumo)" value={material.insumo_nombre || material.nombre_material} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-          <Row label="Cantidad a usar"  value={`${Number(material.cantidad)} ${material.unidad_medida || ''}`} />
-          <Row label="Costo Total"      value={`$${Number(material.costo_total).toLocaleString()} COP`} accent />
-        </div>
-        <Row label="Unidad de Medida" value={material.unidad_medida} />
-        <Row label="Proveedor"        value={material.proveedor} />
-        <Row label="Taller asignado"  value={material.nombre_taller} />
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', background: material.estado ? '#D1FAE5' : '#FEE2E2', marginTop: '4px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: material.estado ? '#065F46' : '#991B1B' }}>
-            {material.estado ? 'Disponible' : 'Inactivo'}
-          </span>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <AdminDetailSection title="DETALLE DEL MATERIAL" icon={<Package style={{ width: '20px', height: '20px' }} />} color="green">
+          <AdminDetailRow label="Material (Insumo)"  value={material.insumo_nombre || material.nombre_material} />
+          <AdminDetailRow label="Taller asignado"    value={material.nombre_taller} />
+          <AdminDetailRow label="Proveedor"          value={material.proveedor} />
+        </AdminDetailSection>
+        <AdminDetailSection title="CANTIDADES Y COSTOS" icon={<DollarSign style={{ width: '20px', height: '20px' }} />} color="gold">
+          <AdminDetailGrid>
+            <AdminDetailRow label="Cantidad a usar"  value={`${Number(material.cantidad)} ${material.unidad_medida || ''}`} />
+            <AdminDetailRow label="Costo Total"      value={`$${Number(material.costo_total).toLocaleString('es-CO')} COP`} />
+          </AdminDetailGrid>
+          <AdminDetailRow label="Unidad de Medida"   value={material.unidad_medida} />
+        </AdminDetailSection>
+        <AdminDetailSection title="ESTADO" icon={<Layers style={{ width: '20px', height: '20px' }} />} color="teal">
+          <AdminDetailRow
+            label="Disponibilidad"
+            badge={{ bg: material.estado ? '#D1FAE5' : '#FEE2E2', color: material.estado ? '#065F46' : '#991B1B', text: material.estado ? 'Disponible' : 'Inactivo' }}
+          />
+        </AdminDetailSection>
       </div>
     );
   }
@@ -295,18 +296,24 @@ export function MaterialesTalleres() {
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', m)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', m)}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                        </motion.button>
-                        <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(m); setShowDeleteModal(true); }}
-                          style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                          <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                        </motion.button>
+                        <Tooltip text="Ver detalle">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', m)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Editar material">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', m)}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                          </motion.button>
+                        </Tooltip>
+                        <Tooltip text="Eliminar material">
+                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(m); setShowDeleteModal(true); }}
+                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                            <Trash2 style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                          </motion.button>
+                        </Tooltip>
                       </div>
                     </td>
                   </motion.tr>

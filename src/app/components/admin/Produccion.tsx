@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Package2, Search, Plus, Info, Edit, Trash2, Calendar, FileText, Hash, Layers, ShoppingBag, CheckCircle, X, XCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { Tooltip } from './Tooltip';
+import { AdminDetailModal, AdminDetailSection, AdminDetailRow, AdminDetailGrid, AdminProductTable } from './AdminDetailModal';
 import { toast } from 'sonner';
 import { produccionAPI, productsAPI, insumosAPI } from '../../lib/api';
 
@@ -43,6 +45,29 @@ const badge = (estado: string) => {
     default:            return { bg: '#FEF3C7', color: '#92400E', label: 'En Proceso' };
   }
 };
+
+/** Calcula la cantidad total de unidades desde un STRING_AGG como "Prod A (3), Prod B (2)" */
+function calcularTotalUnidades(productoStr: string | null): number {
+  if (!productoStr) return 0;
+  let total = 0;
+  const regex = /\((\d+)\)/g;
+  let m;
+  while ((m = regex.exec(productoStr)) !== null) total += parseInt(m[1], 10);
+  return total || productoStr.split(',').length;
+}
+
+/** Convierte el STRING_AGG en array para la tabla del modal */
+function parsearProductosString(productoStr: string | null): { nombre: string; cantidad: number; precio_unitario?: number }[] {
+  if (!productoStr) return [];
+  return productoStr.split(',').map(item => {
+    const trimmed = item.trim();
+    const matchParen = trimmed.match(/^(.+)\s*\((\d+)\)$/);
+    const matchX     = trimmed.match(/^(\d+)x?\s+(.+)$/i);
+    if (matchParen) return { nombre: matchParen[1].trim(), cantidad: parseInt(matchParen[2]) };
+    if (matchX)     return { nombre: matchX[2].trim(),     cantidad: parseInt(matchX[1]) };
+    return { nombre: trimmed, cantidad: 1 };
+  }).filter(d => d.nombre);
+}
 
 function ModalContent({ type, orden, form, onChange, onSubmit, productos, insumosDisponibles }: {
   type: 'view' | 'edit' | 'add'; orden?: any;
@@ -111,7 +136,7 @@ function ModalContent({ type, orden, form, onChange, onSubmit, productos, insumo
         <Row icon={Calendar}  label="Fecha de registro"  value={orden.fecha_produccion ? new Date(orden.fecha_produccion).toLocaleDateString('es-CO') : '—'} />
         
         {orden.tipo_origen !== 'Pedido' && (
-          <Row icon={Calendar}  label="Fecha de entrega" value={orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-CO') : '—'} />
+          <Row icon={Calendar}  label="Fecha fin de producción" value={orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-CO') : '—'} />
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', borderRadius: '12px', background: 'rgba(45,75,57,0.03)' }}>
@@ -750,7 +775,7 @@ export function Produccion() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: 'linear-gradient(135deg,#B8860B,#996515)', color: '#fff' }}>
               <tr>
-                {['PEDIDO', 'CLIENTE', 'PRODUCTOS', 'FECHA INGRESO', 'FECHA ENTREGA', 'ESTADO', 'ACCIONES'].map(h => (
+                {['PEDIDO', 'CLIENTE', 'PRODUCTOS', 'FECHA INGRESO', 'FECHA FIN PROD.', 'ESTADO', 'ACCIONES'].map(h => (
                   <th key={h} style={{ padding: '14px 18px', textAlign: ['ESTADO','ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -771,42 +796,64 @@ export function Produccion() {
                         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{p.cliente_email || ''}</div>
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#2D4B39', maxWidth: '220px' }}>
-                        {p.producto || '—'}
+                        {(() => {
+                          const total = calcularTotalUnidades(p.producto);
+                          const items = parsearProductosString(p.producto);
+                          const unicos = items.length;
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ padding: '3px 10px', borderRadius: '9999px', background: 'rgba(184,134,11,0.1)', color: '#92400E', fontSize: '12px', fontWeight: 700, display: 'inline-block', width: 'fit-content' }}>
+                                {total} unidad{total !== 1 ? 'es' : ''}
+                              </span>
+                              {unicos > 0 && (
+                                <span style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                                  {unicos} producto{unicos !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#6B7280' }}>
                         {p.fecha_produccion ? new Date(p.fecha_produccion).toLocaleDateString('es-CO') : '—'}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#6B7280' }}>
-                        {p.fecha_entrega ? new Date(p.fecha_entrega).toLocaleDateString('es-CO') : <span style={{ color: '#D97706', fontStyle: 'italic', fontSize: '12px' }}>Pendiente</span>}
+                        {p.fecha_entrega ? new Date(p.fecha_entrega).toLocaleDateString('es-CO') : <span style={{ color: '#6B7280', fontStyle: 'italic', fontSize: '12px' }}>—</span>}
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'center' }}>
                         <span style={{ padding: '4px 12px', borderRadius: '9999px', fontSize: '11px', fontWeight: 600, background: b.bg, color: b.color }}>{b.label}</span>
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} title="Ver detalle"
-                            onClick={() => openModal('view', { ...p, tipo_origen: 'Pedido' })}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalle">
+                            <motion.button whileHover={{ scale: 1.15 }}
+                              onClick={() => openModal('view', { ...p, tipo_origen: 'Pedido' })}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
                           {p.estado === 'en_proceso' && (
                             <>
-                              <motion.button whileHover={{ scale: 1.15 }} title="Agregar productos y completar"
-                                onClick={() => setPedidoParaProductos(p)}
-                                style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(5,150,105,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: '#065F46' }}>
-                                <CheckCircle style={{ width: '14px', height: '14px' }} />
-                              </motion.button>
-                              <motion.button whileHover={{ scale: 1.15 }} title="Cancelar producción"
-                                onClick={async () => {
-                                  try {
-                                    await produccionAPI.cancelarPedidoProduccion(p.id_pedidos);
-                                    toast.success('Pedido cancelado de producción');
-                                    cargar();
-                                  } catch (err: any) { toast.error(err.message); }
-                                }}
-                                style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(239,68,68,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: '#991B1B' }}>
-                                <XCircle style={{ width: '14px', height: '14px' }} />
-                              </motion.button>
+                              <Tooltip text="Agregar productos y completar">
+                                <motion.button whileHover={{ scale: 1.15 }}
+                                  onClick={() => setPedidoParaProductos(p)}
+                                  style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(5,150,105,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: '#065F46' }}>
+                                  <CheckCircle style={{ width: '14px', height: '14px' }} />
+                                </motion.button>
+                              </Tooltip>
+                              <Tooltip text="Cancelar producción">
+                                <motion.button whileHover={{ scale: 1.15 }}
+                                  onClick={async () => {
+                                    try {
+                                      await produccionAPI.cancelarPedidoProduccion(p.id_pedidos);
+                                      toast.success('Pedido cancelado de producción');
+                                      cargar();
+                                    } catch (err: any) { toast.error(err.message); }
+                                  }}
+                                  style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(239,68,68,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: '#991B1B' }}>
+                                  <XCircle style={{ width: '14px', height: '14px' }} />
+                                </motion.button>
+                              </Tooltip>
                             </>
                           )}
                         </div>
@@ -837,7 +884,7 @@ export function Produccion() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#2D4B39', color: '#fff' }}>
               <tr>
-                {['# ORDEN', 'PRODUCTO', 'CANTIDAD', 'FECHA PROD.', 'FECHA ENTREGA', 'ESTADO', 'ACCIONES'].map(h => (
+                {['# ORDEN', 'PRODUCTO', 'CANTIDAD', 'FECHA PROD.', 'FECHA FIN PROD.', 'ESTADO', 'ACCIONES'].map(h => (
                   <th key={h} style={{ padding: '14px 18px', textAlign: ['CANTIDAD','ESTADO','ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -865,32 +912,40 @@ export function Produccion() {
                         {o.fecha_produccion ? new Date(o.fecha_produccion).toLocaleDateString('es-CO') : '—'}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#6B7280' }}>
-                        {o.fecha_entrega ? new Date(o.fecha_entrega).toLocaleDateString('es-CO') : <span style={{ color: '#D97706', fontStyle: 'italic', fontSize: '12px' }}>Al completar</span>}
+                        {o.fecha_entrega ? new Date(o.fecha_entrega).toLocaleDateString('es-CO') : <span style={{ color: '#6B7280', fontStyle: 'italic', fontSize: '12px' }}>—</span>}
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'center' }}>
                         <span style={{ padding: '4px 12px', borderRadius: '9999px', fontSize: '11px', fontWeight: 600, background: b.bg, color: b.color }}>{b.label}</span>
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', o)}
-                            style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                            <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalle">
+                            <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('view', o)}
+                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                              <Info style={{ width: '15px', height: '15px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
                           {o.estado === 'en_proceso' && (
                             <>
-                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', o)}
-                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
-                              </motion.button>
-                              <motion.button whileHover={{ scale: 1.15 }} title="Completar orden"
-                                onClick={() => setOrdenParaCompletar(o)}
-                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'rgba(5,150,105,0.1)', cursor: 'pointer' }}>
-                                <CheckCircle style={{ width: '15px', height: '15px', color: '#065F46' }} />
-                              </motion.button>
-                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(o); setShowDeleteModal(true); }}
-                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }}>
-                                <XCircle style={{ width: '15px', height: '15px', color: '#EF4444' }} />
-                              </motion.button>
+                              <Tooltip text="Editar orden">
+                                <motion.button whileHover={{ scale: 1.15 }} onClick={() => openModal('edit', o)}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                  <Edit style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                                </motion.button>
+                              </Tooltip>
+                              <Tooltip text="Completar orden">
+                                <motion.button whileHover={{ scale: 1.15 }}
+                                  onClick={() => setOrdenParaCompletar(o)}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'rgba(5,150,105,0.1)', cursor: 'pointer' }}>
+                                  <CheckCircle style={{ width: '15px', height: '15px', color: '#065F46' }} />
+                                </motion.button>
+                              </Tooltip>
+                              <Tooltip text="Cancelar orden">
+                                <motion.button whileHover={{ scale: 1.15 }} onClick={() => { setToDelete(o); setShowDeleteModal(true); }}
+                                  style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }}>
+                                  <XCircle style={{ width: '15px', height: '15px', color: '#EF4444' }} />
+                                </motion.button>
+                              </Tooltip>
                             </>
                           )}
                         </div>
@@ -911,9 +966,66 @@ export function Produccion() {
       </AnimatePresence>
 
       {/* MODALES */}
-      {modalType && (
+      {/* Modal VIEW — usa AdminDetailModal con estilo unificado */}
+      {modalType === 'view' && selected && (
+        <AdminDetailModal
+          isOpen={true}
+          onClose={closeModal}
+          title={
+            selected.tipo_origen === 'Pedido'
+              ? `Pedido PED-${String(selected.id_pedidos).padStart(4,'0')}`
+              : `Orden ORD-${String(selected.id_produccion || '').split('_')[1] || selected.id_produccion}`
+          }
+          maxWidth="580px"
+        >
+          {/* Información general */}
+          <AdminDetailSection title="INFORMACIÓN GENERAL" icon={<Package2 style={{ width: '20px', height: '20px' }} />} color="green">
+            {selected.tipo_origen === 'Pedido' && (
+              <>
+                <AdminDetailRow label="Cliente"    value={selected.cliente || '—'} />
+                <AdminDetailGrid>
+                  <AdminDetailRow label="Correo"   value={selected.cliente_email || '—'} />
+                  <AdminDetailRow label="Total"    value={selected.total ? `$${Number(selected.total).toLocaleString('es-CO')} COP` : '—'} />
+                </AdminDetailGrid>
+              </>
+            )}
+            {selected.tipo_origen !== 'Pedido' && (
+              <>
+                <AdminDetailRow label="Producto"          value={selected.producto || '—'} />
+                <AdminDetailRow label="Cantidad planificada" value={String(selected.cantidad || 1)} />
+              </>
+            )}
+            <AdminDetailGrid>
+              <AdminDetailRow label="Fecha de ingreso" value={selected.fecha_produccion ? new Date(selected.fecha_produccion).toLocaleDateString('es-CO') : '—'} />
+              <AdminDetailRow label="Fecha fin de producción" value={selected.fecha_entrega ? new Date(selected.fecha_entrega).toLocaleDateString('es-CO') : '—'} />
+            </AdminDetailGrid>
+            {selected.observaciones && <AdminDetailRow label="Observaciones" value={selected.observaciones} />}
+            <AdminDetailRow
+              label="Estado"
+              badge={(() => { const b = badge(selected.estado); return { bg: b.bg, color: b.color, text: b.label }; })()}
+            />
+          </AdminDetailSection>
+
+          {/* Productos — solo para pedidos */}
+          {selected.tipo_origen === 'Pedido' && (
+            <AdminDetailSection title="PRODUCTOS DEL PEDIDO" icon={<ShoppingBag style={{ width: '20px', height: '20px' }} />} color="gold">
+              <AdminProductTable
+                items={
+                  Array.isArray(selected.detalle) && selected.detalle.filter((d: any) => d.nombre).length > 0
+                    ? selected.detalle
+                    : parsearProductosString(selected.producto)
+                }
+                showPrice={Array.isArray(selected.detalle) && selected.detalle.some((d: any) => d.precio_unitario != null)}
+              />
+            </AdminDetailSection>
+          )}
+        </AdminDetailModal>
+      )}
+
+      {/* Modal ADD/EDIT — mantiene el modal existente */}
+      {(modalType === 'add' || modalType === 'edit') && (
         <Modal isOpen={true} onClose={closeModal}
-          title={modalType === 'add' ? 'Nueva Orden de Producción' : modalType === 'edit' ? 'Editar Orden' : 'Detalle de Orden'}>
+          title={modalType === 'add' ? 'Nueva Orden de Producción' : 'Editar Orden'}>
           <ModalContent type={modalType} orden={selected} form={form} productos={productos} insumosDisponibles={insumosDisponibles}
             onChange={(f, v) => setForm(p => ({ ...p, [f]: v }))} onSubmit={handleSubmit} />
         </Modal>

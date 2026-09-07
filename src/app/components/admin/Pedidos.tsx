@@ -5,6 +5,7 @@ import { Modal } from './Modal';
 import { toast } from 'sonner';
 import { pedidosAPI, clientesAPI, productsAPI } from '../../lib/api';
 import { VerificarProduccionModal } from '../VerificarProduccionModal';
+import { Tooltip } from './Tooltip';
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
   const cloudName = "ddcx9ks5g"; 
@@ -109,7 +110,7 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
   const estado = mapEstado(p.estado);
   const s = estadoStyle(estado);
   const Icon = s.icon;
-  const detalle: { nombre: string; cantidad: number; precio_unitario: number }[] =
+  const detalle: { nombre: string; cantidad: number; precio_unitario: number; imagen_url?: string }[] =
     Array.isArray(p.detalle) ? p.detalle.filter((d: any) => d.nombre) : [];
 
   return (
@@ -147,6 +148,7 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
               <thead>
                 <tr style={{ background: 'rgba(45,75,57,0.08)' }}>
                   <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#2D4B39', borderRadius: '6px 0 0 6px' }}>#</th>
+                  <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700, color: '#2D4B39' }}></th>
                   <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#2D4B39' }}>Producto</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: '#2D4B39' }}>Cant.</th>
                   <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#2D4B39', borderRadius: '0 6px 6px 0' }}>Precio Unit.</th>
@@ -156,6 +158,12 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
                 {detalle.map((item, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid rgba(184,134,11,0.08)' }}>
                     <td style={{ padding: '8px 12px', color: '#9CA3AF' }}>{i + 1}</td>
+                    <td style={{ padding: '8px 4px' }}>
+                      {item.imagen_url
+                        ? <img src={item.imagen_url} alt={item.nombre} style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover', display: 'block' }} />
+                        : <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(45,75,57,0.06)' }} />
+                      }
+                    </td>
                     <td style={{ padding: '8px 12px', fontWeight: 600, color: '#2D4B39' }}>{item.nombre}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'center', color: '#6B7280' }}>{item.cantidad}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#B8860B' }}>
@@ -168,7 +176,60 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
           ) : (
             <div style={{ fontSize: '13px', color: '#6B7280' }}>{formatearProductosVisual(p.producto)}</div>
           )}
-          {p.direccion_entrega && <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '12px' }}>📍 {p.direccion_entrega}</div>}
+          {p.direccion_entrega && (() => {
+            // El formato es: "Dirección, Ciudad, Departamento (Colombia) | Tel: xxx | Nombre: yyy"
+            // o desde el carrito: "Dirección, Ciudad, Departamento (Colombia)"
+            const raw = p.direccion_entrega;
+            const sinTel  = raw.split('|')[0].trim();               // "Calle 45 #12-30, Bogotá, Cundinamarca (Colombia)"
+            const sinCol  = sinTel.replace(/\s*\(Colombia\)\s*$/, ''); // "Calle 45 #12-30, Bogotá, Cundinamarca"
+            const partes  = sinCol.split(',').map((s: string) => s.trim());
+            const depto   = partes.length >= 2 ? partes[partes.length - 1] : '';
+            const ciudad  = partes.length >= 3 ? partes[partes.length - 2] : '';
+            const dir     = partes.slice(0, partes.length >= 3 ? partes.length - 2 : partes.length - 1).join(', ');
+            // Telefono y nombre del campo descripcion o desde el | de direccion
+            const telMatch = raw.match(/Tel:\s*([^|]+)/);
+            const nomMatch = raw.match(/Nombre:\s*([^|]+)/);
+            const telStr  = telMatch ? telMatch[1].trim() : (p.cliente_telefono || '');
+            return (
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#2D4B39', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  📦 Dirección de Envío
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {dir && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px', gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>DIRECCIÓN</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{dir}</div>
+                    </div>
+                  )}
+                  {ciudad && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>CIUDAD</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{ciudad}</div>
+                    </div>
+                  )}
+                  {depto && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>DEPARTAMENTO</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{depto}</div>
+                    </div>
+                  )}
+                  {telStr && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>TELÉFONO ENVÍO</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{telStr}</div>
+                    </div>
+                  )}
+                  {nomMatch && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>DESTINATARIO</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{nomMatch[1].trim()}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* BLOQUE ESTADO Y PAGO */}
@@ -600,50 +661,55 @@ const handleSubmit = async () => {
                       
                       <td style={{ padding: '20px 24px' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => openModal('view', p)}
-                            style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }} title="Ver Detalles">
-                            <Info style={{ width: '16px', height: '16px', color: '#6B7280' }} />
-                          </motion.button>
+                          <Tooltip text="Ver detalles">
+                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => openModal('view', p)}
+                              style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
+                              <Info style={{ width: '16px', height: '16px', color: '#6B7280' }} />
+                            </motion.button>
+                          </Tooltip>
 
-                          {/* ══════════════════════════════════════════════════════════════ */}
-                          {/* NUEVO BOTÓN: VERIFICAR Y MANDAR A PRODUCCIÓN                   */}
-                          {/* ══════════════════════════════════════════════════════════════ */}
                           {mapEstado(p.estado) === 'EN_PRODUCCION' && (
-                            <motion.button 
-                              whileHover={{ scale: 1.15 }} 
-                              title="Marcar como completado"
-                              onClick={async () => {
-                                try {
-                                  await pedidosAPI.updateEstado(p.id_pedidos, { estado: 'COMPLETADO' });
-                                  toast.success('Pedido marcado como completado');
-                                  cargar();
-                                } catch (err: any) { toast.error(err.message); }
-                              }}
-                              style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}
-                            >
-                              <CheckCircle style={{ width: '15px', height: '15px', color: '#2D4B39' }} />
-                            </motion.button>
+                            <Tooltip text="Marcar como completado">
+                              <motion.button whileHover={{ scale: 1.15 }}
+                                onClick={async () => {
+                                  try {
+                                    await pedidosAPI.updateEstado(p.id_pedidos, { estado: 'COMPLETADO' });
+                                    toast.success('Pedido marcado como completado');
+                                    cargar();
+                                  } catch (err: any) { toast.error(err.message); }
+                                }}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                              >
+                                <CheckCircle style={{ width: '15px', height: '15px', color: '#2D4B39' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
-                          
+
                           {p.comprobante_pago && (
-                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
-                              onClick={() => setShowComprobante(p.comprobante_pago)}
-                              style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }} title="Ver comprobante">
-                              <Receipt style={{ width: '16px', height: '16px', color: '#B8860B' }} />
-                            </motion.button>
+                            <Tooltip text="Ver comprobante">
+                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
+                                onClick={() => setShowComprobante(p.comprobante_pago)}
+                                style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
+                                <Receipt style={{ width: '16px', height: '16px', color: '#B8860B' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
-                          
+
                           {isPorVerificar && (
                             <>
-                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => handleConfirmar(p)}
-                                style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }} title="Aprobar Pago e Iniciar Producción">
-                                <CheckCircle style={{ width: '16px', height: '16px', color: '#10B981' }} />
-                              </motion.button>
-                              
-                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => { setToCancel(p); setShowDeleteModal(true); }}
-                                style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }} title="Rechazar y Cancelar">
-                                <Ban style={{ width: '16px', height: '16px', color: '#EF4444' }} />
-                              </motion.button>
+                              <Tooltip text="Aprobar pago — iniciar producción">
+                                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => handleConfirmar(p)}
+                                  style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
+                                  <CheckCircle style={{ width: '16px', height: '16px', color: '#10B981' }} />
+                                </motion.button>
+                              </Tooltip>
+
+                              <Tooltip text="Rechazar pago">
+                                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => { setToCancel(p); setShowDeleteModal(true); }}
+                                  style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
+                                  <Ban style={{ width: '16px', height: '16px', color: '#EF4444' }} />
+                                </motion.button>
+                              </Tooltip>
                             </>
                           )}
                         </div>

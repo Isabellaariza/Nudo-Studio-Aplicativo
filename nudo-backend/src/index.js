@@ -26,6 +26,7 @@ import materialesRoutes      from './routes/materiales.js';
 import produccionRoutes      from './routes/produccion.js';
 import dashboardRoutes       from './routes/dashboard.js';
 import notificacionesRoutes  from './routes/notificaciones.js';
+import descuentosRoutes      from './routes/descuentos.js';
 import { errorHandler }      from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -60,6 +61,7 @@ app.use('/api/materiales',            materialesRoutes);
 app.use('/api/produccion',            produccionRoutes);
 app.use('/api/dashboard',             dashboardRoutes);
 app.use('/api/notificaciones',        notificacionesRoutes);
+app.use('/api/descuentos',            descuentosRoutes);
 
 app.use((req, res) => res.status(404).json({ mensaje: `Ruta ${req.method} ${req.path} no encontrada` }));
 app.use(errorHandler);

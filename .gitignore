@@ -19,6 +19,9 @@ desktop.ini
 .DS_Store
 Thumbs.db
 
+# SonarQube
+.scannerwork/
+
 # Temp / tokens
 tmp_token.txt
 tok.txt

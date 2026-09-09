@@ -4,6 +4,7 @@ import { User, Mail, Phone, MapPin, FileText, CreditCard, Edit3, LogOut, Shoppin
 import { toast } from 'sonner';
 import { auth, pedidosAPI, misMatriculasAPI, abonosAPI } from '../../lib/api';
 import { LogoutModal } from '../LogoutModal';
+import { filterNombre, filterTelefono, filterDocumento, validateDireccion } from '../../lib/validators';
 
 interface ProfilePageProps {
   user: any;
@@ -48,6 +49,9 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [docError, setDocError] = useState('');
+  const [addressError, setAddressError] = useState('');
   
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pedidoDetalle, setPedidoDetalle] = useState<any | null>(null);
@@ -100,6 +104,10 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
       }
     }
     if (nameError) { toast.error('El nombre solo puede contener letras'); return; }
+    if (phoneError) { toast.error(phoneError); return; }
+    if (docError) { toast.error(docError); return; }
+    const addrErr = validateDireccion(formData.direccion);
+    if (addrErr) { toast.error(addrErr); return; }
     try {
       const payload: any = { ...formData };
       if (newPassword) payload.password = newPassword;
@@ -293,9 +301,9 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
               <h2 className="font-medium mb-6" style={{ color: '#2D4B39' }}>Editar Información</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { icon: User, label: 'Nombre Completo', key: 'nombre', type: 'text' },
-                  { icon: Phone, label: 'Telefono', key: 'telefono', type: 'tel' },
-                  { icon: MapPin, label: 'Direccion', key: 'direccion', type: 'text' },
+                  { icon: User,       label: 'Nombre Completo',    key: 'nombre',           type: 'text' },
+                  { icon: Phone,      label: 'Telefono',           key: 'telefono',         type: 'tel'  },
+                  { icon: MapPin,     label: 'Direccion',          key: 'direccion',        type: 'text' },
                   { icon: CreditCard, label: 'Numero de Documento', key: 'numero_documento', type: 'text' },
                 ].map(({ icon: Icon, label, key, type }) => (
                   <div key={key}>
@@ -307,20 +315,55 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                       value={(formData as any)[key]}
                       onChange={e => {
                         if (key === 'nombre') {
-                          const val = e.target.value;
-                          if (/[0-9]/.test(val)) { setNameError('El nombre solo puede contener letras'); return; }
-                          setNameError('');
+                          const { value, error } = filterNombre(e.target.value);
+                          setNameError(error);
+                          setFormData({ ...formData, nombre: value });
+                        } else if (key === 'telefono') {
+                          const { value, error } = filterTelefono(e.target.value);
+                          setPhoneError(error);
+                          setFormData({ ...formData, telefono: value });
+                        } else if (key === 'numero_documento') {
+                          const { value, error } = filterDocumento(e.target.value);
+                          setDocError(error);
+                          setFormData({ ...formData, numero_documento: value });
+                        } else {
+                          setFormData({ ...formData, [key]: e.target.value });
                         }
-                        setFormData({ ...formData, [key]: e.target.value });
+                      }}
+                      onBlur={e => {
+                        if (key === 'direccion') setAddressError(validateDireccion(e.target.value));
                       }}
                       className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                      style={{ border: `1px solid ${key === 'nombre' && nameError ? '#DC2626' : 'rgba(45,75,57,0.12)'}`, color: '#2D4B39', backgroundColor: '#FAFAFA' }}
-                      onFocus={e => e.target.style.borderColor = key === 'nombre' && nameError ? '#DC2626' : '#B8860B'}
-                      onBlur={e => e.target.style.borderColor = key === 'nombre' && nameError ? '#DC2626' : 'rgba(45,75,57,0.12)'}
+                      style={{
+                        border: `1px solid ${
+                          (key === 'nombre' && nameError) ||
+                          (key === 'telefono' && phoneError) ||
+                          (key === 'numero_documento' && docError) ||
+                          (key === 'direccion' && addressError)
+                            ? '#DC2626' : 'rgba(45,75,57,0.12)'
+                        }`,
+                        color: '#2D4B39', backgroundColor: '#FAFAFA'
+                      }}
+                      onFocus={e => e.target.style.borderColor = '#B8860B'}
                     />
                     {key === 'nombre' && nameError && (
                       <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
                         <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{nameError}
+                      </p>
+                    )}
+                    {key === 'telefono' && phoneError && (
+                      <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                        <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{phoneError}
+                      </p>
+                    )}
+                    {key === 'numero_documento' && docError && (
+                      <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                        <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{docError}
+                      </p>
+                    )}
+                    {key === 'direccion' && addressError && (
+                      <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                        <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{addressError}
                       </p>
                     )}
                   </div>

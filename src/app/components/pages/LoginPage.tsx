@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, ArrowRight, Loader2, Phone, MapPin, FileText, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { auth } from '../../lib/api';
+import { filterNombre, filterTelefono, filterDocumento, validateTelefonoRequerido, validateDocumentoRequerido, validateDireccionRequerida } from '../../lib/validators';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -99,6 +100,9 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordHints, setShowPasswordHints] = useState(false);
   const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [docError, setDocError] = useState('');
+  const [addressError, setAddressError] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -123,9 +127,12 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       } else {
         if (!formData.name.trim()) { toast.error('El nombre es obligatorio'); setIsLoading(false); return; }
         if (nameError) { toast.error('El nombre solo puede contener letras'); setIsLoading(false); return; }
-        if (!formData.phone.trim()) { toast.error('El telefono es obligatorio'); setIsLoading(false); return; }
-        if (!formData.documentNumber.trim()) { toast.error('El numero de documento es obligatorio'); setIsLoading(false); return; }
-        if (!formData.address.trim()) { toast.error('La direccion es obligatoria'); setIsLoading(false); return; }
+        const telErr = validateTelefonoRequerido(formData.phone);
+        if (telErr) { toast.error(telErr); setIsLoading(false); return; }
+        const docErr = validateDocumentoRequerido(formData.documentNumber);
+        if (docErr) { toast.error(docErr); setIsLoading(false); return; }
+        const addrErr = validateDireccionRequerida(formData.address);
+        if (addrErr) { toast.error(addrErr); setIsLoading(false); return; }
         if (!formData.email.trim()) { toast.error('El correo es obligatorio'); setIsLoading(false); return; }
         if (!formData.password) { toast.error('La contrasena es obligatoria'); setIsLoading(false); return; }
         const rules = passwordRules(formData.password);
@@ -274,13 +281,9 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                             placeholder="Tu nombre completo"
                             value={formData.name}
                             onChange={e => {
-                              const val = e.target.value;
-                              if (/[0-9]/.test(val)) {
-                                setNameError('El nombre solo puede contener letras');
-                              } else {
-                                setNameError('');
-                                setFormData({ ...formData, name: val });
-                              }
+                              const { value, error } = filterNombre(e.target.value);
+                              setNameError(error);
+                              setFormData({ ...formData, name: value });
                             }}
                             required
                           />
@@ -292,7 +295,22 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                         </Field>
                         <div className="grid grid-cols-2 gap-3">
                           <Field icon={Phone} label="Teléfono">
-                            <StyledInput type="tel" placeholder="300 123 4567" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} required />
+                            <StyledInput
+                              type="tel"
+                              placeholder="3001234567"
+                              value={formData.phone}
+                              onChange={e => {
+                                const { value, error } = filterTelefono(e.target.value);
+                                setPhoneError(error);
+                                setFormData({ ...formData, phone: value });
+                              }}
+                              required
+                            />
+                            {phoneError && (
+                              <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                                <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{phoneError}
+                              </p>
+                            )}
                           </Field>
                           <Field icon={FileText} label="Tipo de Documento">
                             <StyledSelect value={formData.documentType} onChange={e => setFormData({ ...formData, documentType: e.target.value })}>
@@ -303,10 +321,37 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                           </Field>
                         </div>
                         <Field icon={CreditCard} label="Número de Documento">
-                          <StyledInput type="text" placeholder="1234567890" value={formData.documentNumber} onChange={e => setFormData({ ...formData, documentNumber: e.target.value })} required />
+                          <StyledInput
+                            type="text"
+                            placeholder="1234567890"
+                            value={formData.documentNumber}
+                            onChange={e => {
+                              const { value, error } = filterDocumento(e.target.value);
+                              setDocError(error);
+                              setFormData({ ...formData, documentNumber: value });
+                            }}
+                            required
+                          />
+                          {docError && (
+                            <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{docError}
+                            </p>
+                          )}
                         </Field>
                         <Field icon={MapPin} label="Dirección">
-                          <StyledInput type="text" placeholder="Calle 123 #45-67" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} required />
+                          <StyledInput
+                            type="text"
+                            placeholder="Calle 123 #45-67"
+                            value={formData.address}
+                            onChange={e => setFormData({ ...formData, address: e.target.value })}
+                            onBlur={e => setAddressError(validateDireccionRequerida(e.target.value))}
+                            required
+                          />
+                          {addressError && (
+                            <p className="mt-1 text-xs flex items-center gap-1" style={{ color: '#DC2626' }}>
+                              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{addressError}
+                            </p>
+                          )}
                         </Field>
                       </motion.div>
                     )}

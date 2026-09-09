@@ -7,6 +7,7 @@ import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { estudiantesAPI } from '../../lib/api';
+import { filterNombre, filterTelefono, validateNombre, validateTelefono } from '../../lib/validators';
 
 const iStyle = {
   width: '100%', padding: '12px 16px', borderRadius: '10px',
@@ -24,6 +25,9 @@ function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
   type: 'view' | 'edit' | 'add'; estudiante?: any;
   form: FormState; onChange: (f: keyof FormState, v: string) => void; onSubmit: () => void;
 }) {
+  const [nombreErr, setNombreErr] = useState('');
+  const [telErr, setTelErr] = useState('');
+
   if (type === 'view' && estudiante) {
     const saldo = Number(estudiante.monto_total || 0) - Number(estudiante.monto_pagado || 0);
     return (
@@ -57,7 +61,10 @@ function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
     <div>
       <div style={{ marginBottom: '16px' }}>
         <label style={lStyle}>Nombre Completo *</label>
-        <input type="text" value={form.nombre_completo} onChange={e => onChange('nombre_completo', e.target.value)} placeholder="Ej: María González" style={iStyle} />
+        <input type="text" value={form.nombre_completo}
+          onChange={e => { const { value, error } = filterNombre(e.target.value); setNombreErr(error); onChange('nombre_completo', value); }}
+          placeholder="Ej: María González" style={{ ...iStyle, borderColor: nombreErr ? '#DC2626' : undefined }} />
+        {nombreErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {nombreErr}</p>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
         <div>
@@ -66,10 +73,17 @@ function ModalContent({ type, estudiante, form, onChange, onSubmit }: {
         </div>
         <div>
           <label style={lStyle}>Teléfono</label>
-          <input type="tel" value={form.telefono} onChange={e => onChange('telefono', e.target.value)} placeholder="300-123-4567" style={iStyle} />
+          <input type="tel" value={form.telefono}
+            onChange={e => { const { value, error } = filterTelefono(e.target.value); setTelErr(error); onChange('telefono', value); }}
+            placeholder="3001234567" style={{ ...iStyle, borderColor: telErr ? '#DC2626' : undefined }} />
+          {telErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {telErr}</p>}
         </div>
       </div>
-      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
+      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => {
+        const ne = validateNombre(form.nombre_completo); if (ne) { setNombreErr(ne); return toast.error(ne); }
+        const te = validateTelefono(form.telefono); if (te) { setTelErr(te); return toast.error(te); }
+        onSubmit();
+      }}
         style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
         {type === 'add' ? 'Agregar Estudiante' : 'Guardar Cambios'}
       </motion.button>

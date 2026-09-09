@@ -7,6 +7,7 @@ import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
 import { empleadosAPI } from '../../lib/api';
+import { filterNombre, filterTelefono, filterDocumento, validateNombre, validateTelefono, validateDocumento, validateDireccion } from '../../lib/validators';
 
 const iStyle = {
   width: '100%', padding: '11px 14px', borderRadius: '10px',
@@ -62,10 +63,18 @@ function ModalContent({ type, empleado, form, onChange, onSubmit }: {
   roles?: any[];
 }) {
   const [tab, setTab] = useState<'Personal' | 'Laboral' | 'Médico'>('Personal');
+  const [nombreErr, setNombreErr] = useState('');
+  const [telErr, setTelErr] = useState('');
+  const [docErr, setDocErr] = useState('');
+  const [dirErr, setDirErr] = useState('');
 
   const goNext = () => {
     if (tab === 'Personal') {
-      if (!form.nombre_completo || !form.cargo) return toast.error('Nombre y cargo son obligatorios');
+      const ne = validateNombre(form.nombre_completo); if (ne) { setNombreErr(ne); return toast.error(ne); }
+      if (!form.cargo) return toast.error('El cargo es obligatorio');
+      const te = validateTelefono(form.telefono); if (te) { setTelErr(te); return toast.error(te); }
+      const doce = validateDocumento(form.numero_documento); if (doce) { setDocErr(doce); return toast.error(doce); }
+      const de = validateDireccion(form.direccion); if (de) { setDirErr(de); return toast.error(de); }
       setTab('Laboral');
     } else if (tab === 'Laboral') {
       if (!form.departamento || !form.tipo_contrato || !form.fecha_inicio) return toast.error('Departamento, tipo de contrato y fecha de inicio son obligatorios');
@@ -119,7 +128,10 @@ function ModalContent({ type, empleado, form, onChange, onSubmit }: {
         <div>
           <div style={{ marginBottom: '14px' }}>
             <label style={lStyle}>Nombre Completo *</label>
-            <input type="text" value={f.nombre_completo} onChange={e => onChange('nombre_completo', e.target.value)} placeholder="Ej: Laura Gómez" style={iStyle} />
+            <input type="text" value={f.nombre_completo}
+              onChange={e => { const { value, error } = filterNombre(e.target.value); setNombreErr(error); onChange('nombre_completo', value); }}
+              placeholder="Ej: Laura Gómez" style={{ ...iStyle, borderColor: nombreErr ? '#DC2626' : undefined }} />
+            {nombreErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {nombreErr}</p>}
           </div>
           <div style={{ marginBottom: '14px' }}>
             <label style={lStyle}>Cargo *</label>
@@ -137,7 +149,10 @@ function ModalContent({ type, empleado, form, onChange, onSubmit }: {
             </div>
             <div>
               <label style={lStyle}>Número de Documento</label>
-              <input type="text" value={f.numero_documento} onChange={e => onChange('numero_documento', e.target.value)} placeholder="1234567890" style={iStyle} />
+              <input type="text" value={f.numero_documento}
+                onChange={e => { const { value, error } = filterDocumento(e.target.value); setDocErr(error); onChange('numero_documento', value); }}
+                placeholder="1234567890" style={{ ...iStyle, borderColor: docErr ? '#DC2626' : undefined }} />
+              {docErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {docErr}</p>}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
@@ -147,12 +162,19 @@ function ModalContent({ type, empleado, form, onChange, onSubmit }: {
             </div>
             <div>
               <label style={lStyle}>Teléfono</label>
-              <input type="tel" value={f.telefono} onChange={e => onChange('telefono', e.target.value)} placeholder="300-123-4567" style={iStyle} />
+              <input type="tel" value={f.telefono}
+                onChange={e => { const { value, error } = filterTelefono(e.target.value); setTelErr(error); onChange('telefono', value); }}
+                placeholder="3001234567" style={{ ...iStyle, borderColor: telErr ? '#DC2626' : undefined }} />
+              {telErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {telErr}</p>}
             </div>
           </div>
           <div style={{ marginBottom: '14px' }}>
             <label style={lStyle}>Dirección</label>
-            <input type="text" value={f.direccion} onChange={e => onChange('direccion', e.target.value)} placeholder="Calle 123 #45-67, Ciudad" style={iStyle} />
+            <input type="text" value={f.direccion}
+              onChange={e => onChange('direccion', e.target.value)}
+              onBlur={e => setDirErr(validateDireccion(e.target.value))}
+              placeholder="Calle 123 #45-67, Ciudad" style={{ ...iStyle, borderColor: dirErr ? '#DC2626' : undefined }} />
+            {dirErr && <p style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px' }}>⚠ {dirErr}</p>}
           </div>
         </div>
       )}

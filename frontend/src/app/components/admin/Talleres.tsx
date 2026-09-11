@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Clock, Users, DollarSign, Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, CheckCircle, MapPin } from 'lucide-react';
+
+const fmt12 = (hora: string) => {
+  if (!hora) return '—';
+  const [h, m] = hora.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
 import { Modal } from './Modal';
 import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -41,7 +48,7 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
           <AdminDetailRow label="Instructor" value={taller.instructor_nombre || taller.nombre_instructor} />
           <AdminDetailGrid>
             <AdminDetailRow label="Fecha"  value={taller.fecha ? new Date(taller.fecha).toLocaleDateString('es-CO') : '—'} />
-            <AdminDetailRow label="Hora"   value={taller.hora ? taller.hora.slice(0, 5) : '—'} />
+            <AdminDetailRow label="Hora"   value={taller.hora ? fmt12(taller.hora) : '—'} />
           </AdminDetailGrid>
           <AdminDetailGrid>
             <AdminDetailRow label="Lugar"  value={taller.lugar || '—'} />
@@ -211,7 +218,7 @@ export function Talleres() {
               <Calendar style={{ width: '28px', height: '28px', color: '#fff' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' }}>Talleres Publicados</h1>
+              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' }}>Programación de Talleres</h1>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#6B7280' }}>{talleres.length} talleres publicados</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -271,7 +278,7 @@ export function Talleres() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Clock style={{ width: '15px', height: '15px', color: '#B8860B', flexShrink: 0 }} />
-                        <span style={{ fontSize: '13px', color: '#6B7280' }}>{t.hora ? t.hora.slice(0, 5) : '—'}</span>
+                        <span style={{ fontSize: '13px', color: '#6B7280' }}>{t.hora ? fmt12(t.hora) : '—'}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MapPin style={{ width: '15px', height: '15px', color: '#B8860B', flexShrink: 0 }} />

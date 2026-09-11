@@ -185,7 +185,7 @@ export function ProgramacionTalleres() {
               <BookOpen style={{ width: '28px', height: '28px', color: '#fff' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' }}>Programación de Talleres</h1>
+              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' }}>Talleres</h1>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#6B7280' }}>{programaciones.length} talleres registrados</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

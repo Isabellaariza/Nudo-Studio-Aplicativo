@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Search, Plus, Info, CheckCircle, Clock, XCircle, Ban, Receipt, Trash2 } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Info, CheckCircle, Clock, XCircle, Ban, Download, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { toast } from 'sonner';
 import { pedidosAPI, clientesAPI, productsAPI } from '../../lib/api';
@@ -254,6 +254,19 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
               <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '4px' }}>Total General</label>
               <div style={{ fontSize: '18px', color: '#2D4B39', fontWeight: 700 }}>${Number(p.total).toLocaleString('es-CO')} COP</div>
             </div>
+            {p.comprobante_pago && (
+              <div>
+                <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '8px' }}>Comprobante de Pago</label>
+                {p.comprobante_pago.toLowerCase().endsWith('.pdf') ? (
+                  <a href={p.comprobante_pago} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '10px', background: 'rgba(184,134,11,0.08)', border: '1px solid rgba(184,134,11,0.25)', color: '#B8860B', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+                    <Download style={{ width: '15px', height: '15px' }} /> Ver PDF
+                  </a>
+                ) : (
+                  <img src={p.comprobante_pago} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -690,7 +703,7 @@ const handleSubmit = async () => {
                               <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
                                 onClick={() => setShowComprobante(p.comprobante_pago)}
                                 style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
-                                <Receipt style={{ width: '16px', height: '16px', color: '#B8860B' }} />
+                                <Download style={{ width: '16px', height: '16px', color: '#B8860B' }} />
                               </motion.button>
                             </Tooltip>
                           )}

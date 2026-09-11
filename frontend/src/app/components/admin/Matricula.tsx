@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GraduationCap, Search, Plus, Info, Trash2, Calendar, DollarSign, Users } from 'lucide-react';
+
+const fmt12 = (hora: string) => {
+  if (!hora) return '';
+  const [h, m] = hora.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};
 import { Modal } from './Modal';
 import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -239,7 +245,7 @@ export function Matricula() {
                       <td style={{ padding: '14px 18px', fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{m.taller || m.nombre_taller || '—'}</td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#6B7280' }}>
                         {m.fecha_taller ? new Date(m.fecha_taller).toLocaleDateString('es-CO') : '—'}
-                        {m.hora && <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{m.hora.slice(0,5)}</div>}
+                        {m.hora && <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{fmt12(m.hora)}</div>}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '13px', color: '#6B7280' }}>{m.instructor || '—'}</td>
                       <td style={{ padding: '14px 18px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#B8860B' }}>

@@ -89,10 +89,10 @@ const menuItems: MenuItem[] = [
     label: 'Talleres', 
     icon: Calendar,
     subsections: [
-      { id: 'talleres', label: 'Talleres' },
+      { id: 'talleres', label: 'Programación de Talleres' },
       { id: 'materiales', label: 'Materiales' },
       { id: 'estudiantes', label: 'Estudiantes' },
-      { id: 'programacion', label: 'Programación de Talleres' },
+      { id: 'programacion', label: 'Talleres' },
       { id: 'matricula', label: 'Matrícula' }
     ]
   },

@@ -6,8 +6,9 @@ export async function listarTalleres(req, res, next) {
     let query = `
       SELECT t.id_talleres, t.fecha, t.hora, t.lugar, t.estado, t.estado_sesion, t.id_programacion,
              pt.nombre_taller, pt.nombre_instructor, pt.precio, pt.descripcion, pt.id_empleado,
+             pt.cupos,
              e.nombre_completo AS instructor_nombre,
-             COUNT(m.id_matricula) AS cupos_ocupados,
+             COUNT(m.id_matricula) FILTER (WHERE m.estado IN ('activa','pendiente_pago')) AS cupos_ocupados,
              STRING_AGG(DISTINCT mat.nombre_material, ', ' ORDER BY mat.nombre_material) AS materiales
       FROM talleres t
       JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller

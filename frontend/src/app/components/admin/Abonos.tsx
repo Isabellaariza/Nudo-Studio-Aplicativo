@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DollarSign, Search, Plus, Info, X, CheckCircle, XCircle, Receipt, Ban, Eye, AlertTriangle } from 'lucide-react';
+import { DollarSign, Search, Plus, Info, X, CheckCircle, XCircle, Receipt, Ban, Eye, AlertTriangle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from './Modal';
 import { abonosAPI, estudiantesAPI, talleresAPI } from '../../lib/api';
@@ -187,6 +187,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
     finally { setUploading(false); }
   };
 
+  // El formulario manual es solo para registrar el SEGUNDO abono (el estudiante ya tiene matrícula activa)
   const abrirNuevo = () => {
     setFormData({
       id_estudiante: '', id_taller: '',
@@ -210,7 +211,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
               <DollarSign style={{ width: '28px', height: '28px', color: '#fff' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '4px' }}>Gestión de Abonos</h1>
+              <h1 style={{ fontSize: '30px', fontWeight: 700, color: '#2D4B39', marginBottom: '4px' }}>Gestión de abonos a talleres</h1>
               <span style={{ fontSize: '14px', color: '#6B7280' }}>
                 {fechaFiltro ? `Abonos del ${new Date(fechaFiltro + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · ` : ''}
                 {filtered.length} abonos registrados
@@ -330,7 +331,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
                             <Tooltip text="Ver comprobante de pago">
                               <motion.button whileHover={{ scale: 1.15 }} onClick={() => setShowComprobante(a.comprobante_pago!)}
                                 style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                <Receipt style={{ width: '15px', height: '15px', color: '#B8860B' }} />
+                                <Download style={{ width: '15px', height: '15px', color: '#B8860B' }} />
                               </motion.button>
                             </Tooltip>
                           )}
@@ -488,7 +489,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
 
       {/* MODAL NUEVO ABONO */}
       {showFormModal && (
-        <Modal isOpen={true} onClose={() => setShowFormModal(false)} title="Nuevo Abono">
+        <Modal isOpen={true} onClose={() => setShowFormModal(false)} title="Registrar segundo abono">
           <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '6px' }}>ESTUDIANTE *</label>

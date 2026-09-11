@@ -34,7 +34,19 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
     }
   };
 
-  const estaLleno = (_t: any) => false; // sin límite de cupos fijo
+  const estaLleno = (t: any) => {
+    const cupos = Number(t.cupos);
+    const ocupados = Number(t.cupos_ocupados) || 0;
+    return cupos > 0 && ocupados >= cupos;
+  };
+
+  const formatHora = (hora: string) => {
+    if (!hora) return null;
+    const [h, m] = hora.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
 
   const formatFecha = (iso: string) => {
     if (!iso) return '—';
@@ -190,7 +202,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
                     {/* Info */}
                     <div className="space-y-2 mb-4">
                       <InfoRow icon={Calendar} text={formatFecha(taller.fecha)} />
-                      {taller.hora && <InfoRow icon={Clock} text={taller.hora} />}
+                      {taller.hora && <InfoRow icon={Clock} text={formatHora(taller.hora) ?? taller.hora} />}
                       {taller.lugar && <InfoRow icon={MapPin} text={taller.lugar} />}
                       <InfoRow
                         icon={Users}
@@ -337,7 +349,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
                 {selected.hora && (
                   <div className="flex items-center gap-3">
                     <Clock className="w-4 h-4 flex-shrink-0" style={{ color: '#B8860B' }} />
-                    <span className="text-sm" style={{ color: '#2D4B39' }}>{selected.hora}</span>
+                    <span className="text-sm" style={{ color: '#2D4B39' }}>{formatHora(selected.hora) ?? selected.hora}</span>
                   </div>
                 )}
                 {selected.lugar && (

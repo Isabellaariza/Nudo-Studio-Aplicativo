@@ -103,6 +103,7 @@ export function Matricula() {
   const [talleresList, setTalleresList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [tallerFiltro, setTallerFiltro] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [showView, setShowView] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
@@ -146,10 +147,13 @@ export function Matricula() {
     setToDelete(null);
   };
 
-  const filtered = matriculas.filter(m =>
-    (m.estudiante || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (m.taller || m.nombre_taller || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = matriculas.filter(m => {
+    const matchSearch =
+      (m.estudiante || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.taller || m.nombre_taller || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTaller = !tallerFiltro || String(m.id_programacion) === tallerFiltro || (m.taller || m.nombre_taller || '') === tallerFiltro;
+    return matchSearch && matchTaller;
+  });
 
   const activas = matriculas.filter(m => m.estado === 'activa').length;
 
@@ -175,12 +179,19 @@ export function Matricula() {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', color: '#9CA3AF' }} />
               <input type="text" placeholder="Buscar por estudiante o taller..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: '44px', paddingRight: '16px', height: '44px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: '#fff', width: '300px', outline: 'none' }} />
+                style={{ paddingLeft: '44px', paddingRight: '16px', height: '44px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: '#fff', width: '280px', outline: 'none' }} />
             </div>
+            <select value={tallerFiltro} onChange={e => setTallerFiltro(e.target.value)}
+              style={{ height: '44px', padding: '0 12px', fontSize: '14px', border: '1px solid rgba(45,75,57,0.15)', borderRadius: '14px', background: tallerFiltro ? 'rgba(184,134,11,0.06)' : '#fff', outline: 'none', color: '#2D4B39', fontWeight: tallerFiltro ? 600 : 400, minWidth: '200px' }}>
+              <option value="">Todos los talleres</option>
+              {talleresList.map((t: any) => (
+                <option key={t.id_talleres} value={t.nombre_taller}>{t.nombre_taller}</option>
+              ))}
+            </select>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setShowAdd(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
               <Plus style={{ width: '16px', height: '16px' }} /> Nueva Matrícula

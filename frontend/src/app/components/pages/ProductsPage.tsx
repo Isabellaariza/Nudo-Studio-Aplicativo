@@ -367,7 +367,124 @@ export function ProductsPage({ user, onNavigate, onCartUpdate }: ProductsPagePro
             <p className="text-sm" style={{ color: 'rgba(45,75,57,0.5)' }}>Intenta con otra búsqueda, categoría o cambiando el rango de precio</p>
           </motion.div>
         )}
+
+        {/* PREGUNTAS FRECUENTES */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-24"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-px w-10" style={{ backgroundColor: '#B8860B' }} />
+              <span className="text-xs tracking-widest uppercase" style={{ color: '#B8860B', fontWeight: 500 }}>Preguntas frecuentes</span>
+            </div>
+            <h2 className="font-elegant mb-10" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#2D4B39', lineHeight: 1.1 }}>
+              ¿Tienes dudas?
+            </h2>
+            <div className="space-y-4 max-w-3xl">
+              {[
+                {
+                  q: '¿Nudo Studio realiza productos personalizados?',
+                  a: '¡Sí! En Nudo Studio realizamos productos personalizados según tus preferencias de color, tamaño y diseño. Si deseas solicitar un producto personalizado o tienes alguna idea en mente, puedes comunicarte directamente con Anudados Patty por WhatsApp y con gusto te asesoramos.',
+                  highlight: true,
+                },
+                {
+                  q: '¿Cuánto tiempo tarda la elaboración de un producto?',
+                  a: 'El tiempo de elaboración varía según el tipo de pieza. Las piezas pequeñas pueden estar listas en 3-5 días hábiles, mientras que las piezas grandes o personalizadas pueden tomar entre 1 y 3 semanas.',
+                },
+                {
+                  q: '¿Cómo realizo mi pedido?',
+                  a: 'Puedes agregar los productos al carrito, completar tu información de envío y adjuntar el comprobante de pago. Una vez verificado el pago, tu pedido entra en producción.',
+                },
+                {
+                  q: '¿Hacen envíos a todo Colombia?',
+                  a: 'Sí, realizamos envíos a todo el territorio nacional. El costo y tiempo de envío dependen de tu ciudad.',
+                },
+              ].map((item, i) => (
+                <FaqItem key={i} question={item.q} answer={item.a} highlight={item.highlight} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* BANNER PERSONALIZADO WHATSAPP */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-16 mb-4 rounded-3xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #2D4B39 0%, #1a2f23 100%)', padding: '48px 40px' }}
+          >
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+              <div>
+                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: '#B8860B', fontWeight: 500 }}>Productos personalizados</p>
+                <h3 className="font-elegant mb-3" style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', color: '#fff', lineHeight: 1.1 }}>
+                  ¿Quieres algo único?
+                </h3>
+                <p className="text-base max-w-lg" style={{ color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+                  Comunicate con <strong style={{ color: '#E8B84B' }}>Anudados Patty</strong> por WhatsApp y cuéntanos tu idea. Creamos piezas a tu medida con los colores, tamaños y diseños que imagines.
+                </p>
+              </div>
+              <a
+                href="https://wa.me/573126058401?text=Hola%2C%20me%20gustar%C3%ADa%20un%20producto%20personalizado"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 inline-flex items-center gap-3 px-8 py-4 rounded-full font-medium text-base transition-all hover:opacity-90"
+                style={{ background: '#25D366', color: '#fff', textDecoration: 'none', boxShadow: '0 8px 24px rgba(37,211,102,0.35)' }}
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current flex-shrink-0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Personalizar ahora
+              </a>
+            </div>
+          </motion.div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function FaqItem({ question, answer, highlight }: { question: string; answer: string; highlight?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="rounded-2xl overflow-hidden cursor-pointer"
+      style={{
+        border: highlight ? '1px solid rgba(184,134,11,0.3)' : '1px solid rgba(45,75,57,0.1)',
+        backgroundColor: highlight ? 'rgba(184,134,11,0.03)' : 'white',
+      }}
+      onClick={() => setOpen(o => !o)}
+    >
+      <div className="flex items-center justify-between p-5 gap-4">
+        <span className="font-medium text-sm" style={{ color: highlight ? '#92400E' : '#2D4B39' }}>
+          {highlight && <span className="mr-2" style={{ color: '#B8860B' }}>✨</span>}
+          {question}
+        </span>
+        <ChevronDown
+          className="w-4 h-4 flex-shrink-0 transition-transform"
+          style={{ color: '#B8860B', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        />
+      </div>
+      {open && (
+        <div className="px-5 pb-5">
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(45,75,57,0.7)' }}>{answer}</p>
+          {highlight && (
+            <a
+              href="https://wa.me/573126058401?text=Hola%2C%20me%20gustar%C3%ADa%20un%20producto%20personalizado"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-full text-sm font-medium"
+              style={{ background: '#25D366', color: '#fff', textDecoration: 'none' }}
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              Solicitar por WhatsApp
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

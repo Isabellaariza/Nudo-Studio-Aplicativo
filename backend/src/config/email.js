@@ -8,6 +8,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Helper: convierte hora HH:MM o HH:MM:SS a formato 12h AM/PM
+function formatHora12(hora) {
+  if (!hora) return null;
+  const [h, m] = hora.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 const base = (contenido) => `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
     <div style="background:#2D4B39;padding:28px 32px;text-align:center;">
@@ -147,7 +156,35 @@ export async function enviarCorreoPedidoCancelado({ email, nombre, numeroPedido,
 
 // ── MATRÍCULAS ───────────────────────────────────────────────────────────────
 
+export async function enviarCorreoInscripcionTaller({ email, nombre, taller, fecha, hora, precio, monto_abono, saldo }) {
+  const horaFmt = hora ? formatHora12(hora) : null;
+  await transporter.sendMail({
+    from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `¡Inscripción recibida: ${taller}! Verificaremos tu pago 🧵`,
+    html: base(`
+      <h2 style="color:#2D4B39;margin:0 0 16px;">¡Hola, ${nombre}!</h2>
+      <p style="color:#4b5563;line-height:1.6;">Recibimos tu solicitud de inscripción al taller. Estamos verificando tu comprobante de pago y te confirmaremos pronto.</p>
+      <div style="background:#fef3c7;border-left:4px solid #B8860B;border-radius:8px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Taller</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#2D4B39;">${taller}</p>
+        ${fecha ? `<p style="margin:4px 0;font-size:14px;color:#4b5563;">📅 Fecha: <strong>${fecha}</strong></p>` : ''}
+        ${horaFmt ? `<p style="margin:4px 0;font-size:14px;color:#4b5563;">🕐 Hora: <strong>${horaFmt}</strong></p>` : ''}
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #fde68a;">
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Abono registrado</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:#92400e;">$${Number(monto_abono).toLocaleString('es-CO')} COP</p>
+          ${saldo > 0 ? `<p style="margin:6px 0 0;font-size:13px;color:#6b7280;">Saldo pendiente: <strong>$${Number(saldo).toLocaleString('es-CO')} COP</strong></p>` : '<p style="margin:6px 0 0;font-size:13px;color:#059669;font-weight:600;">✓ Pago completo</p>'}
+        </div>
+        <p style="margin:12px 0 0;font-size:13px;color:#92400e;font-weight:600;">Estado: ⏳ Pendiente de verificación</p>
+      </div>
+      <p style="color:#4b5563;line-height:1.6;">Una vez verifiquemos tu comprobante, recibirás un correo de confirmación. Si tienes dudas, contáctanos por WhatsApp.</p>
+      <p style="color:#B8860B;font-weight:600;margin-top:24px;">¡Gracias por inscribirte en Nudo Studio!</p>
+    `),
+  });
+}
+
 export async function enviarCorreoMatriculaConfirmada({ email, nombre, taller, fecha, hora, precio }) {
+  const horaFmt = hora ? formatHora12(hora) : null;
   await transporter.sendMail({
     from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -159,7 +196,7 @@ export async function enviarCorreoMatriculaConfirmada({ email, nombre, taller, f
         <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Taller</p>
         <p style="margin:0;font-size:18px;font-weight:700;color:#2D4B39;">${taller}</p>
         ${fecha ? `<p style="margin:8px 0 0;font-size:14px;color:#4b5563;">📅 Fecha: <strong>${fecha}</strong></p>` : ''}
-        ${hora ? `<p style="margin:4px 0 0;font-size:14px;color:#4b5563;">🕐 Hora: <strong>${hora}</strong></p>` : ''}
+        ${horaFmt ? `<p style="margin:4px 0 0;font-size:14px;color:#4b5563;">🕐 Hora: <strong>${horaFmt}</strong></p>` : ''}
         ${precio > 0 ? `<p style="margin:8px 0 0;font-size:14px;color:#065f46;font-weight:700;">Valor: $${Number(precio).toLocaleString('es-CO')} COP</p>` : ''}
       </div>
       <p style="color:#4b5563;line-height:1.6;">Por favor llega 10 minutos antes. Todos los materiales están incluidos en el precio del taller.</p>

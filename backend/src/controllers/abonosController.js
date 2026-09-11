@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import {
   enviarCorreoMatriculaConfirmada,
   enviarCorreoMatriculaCancelada,
+  enviarCorreoInscripcionTaller,
 } from '../config/email.js';
 
 // Estados válidos de abono
@@ -435,6 +436,31 @@ export async function crearAbonoTaller(req, res, next) {
 
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Abono registrado, pendiente de verificación', abono: result.rows[0] });
+
+    // Correo de inscripción recibida
+    try {
+      const emailRes = await pool.query(
+        `SELECT e.nombre_completo, e.email, pt.nombre_taller, t.fecha, t.hora, pt.precio
+         FROM estudiantes e
+         LEFT JOIN talleres t ON t.id_talleres = $1
+         LEFT JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
+         WHERE e.id_estudiante = $2`,
+        [id_taller, id_estudiante]
+      );
+      if (emailRes.rows.length && emailRes.rows[0].email) {
+        const d = emailRes.rows[0];
+        enviarCorreoInscripcionTaller({
+          email: d.email,
+          nombre: d.nombre_completo || 'Estudiante',
+          taller: d.nombre_taller || 'Taller',
+          fecha: d.fecha ? new Date(d.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : null,
+          hora: d.hora || null,
+          precio: Number(d.precio) || 0,
+          monto_abono: Number(monto_abono),
+          saldo: saldo < 0 ? 0 : saldo,
+        }).catch(() => {});
+      }
+    } catch {}
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 }

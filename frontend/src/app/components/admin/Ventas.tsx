@@ -300,7 +300,7 @@ export function Ventas() {
                             PED-{String(v.idPedido).padStart(4, '0')}
                           </span>
                         ) : (
-                          <span style={{ fontSize: '11px', color: '#9CA3AF', fontStyle: 'italic' }}>Abono</span>
+                          <span style={{ fontSize: '11px', color: '#9CA3AF', fontStyle: 'italic' }}>Abono de taller</span>
                         )}
                       </td>
                       <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280' }}>

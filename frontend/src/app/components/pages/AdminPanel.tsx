@@ -15,7 +15,6 @@ import { Compras } from '../admin/Compras';
 import { Ventas } from '../admin/Ventas';
 import { CategoriaProductos } from '../admin/CategoriaProductos';
 import { CategoriaInsumos } from '../admin/CategoriaInsumos';
-import { MaterialesTalleres } from '../admin/MaterialesTalleres';
 import { ProgramacionTalleres } from '../admin/ProgramacionTalleres';
 import { Matricula } from '../admin/Matricula';
 import { Abonos } from '../admin/Abonos';
@@ -64,7 +63,6 @@ export function AdminPanel({ user, activeSection: externalSection, onNavigate: e
       case 'produccion':           return <Produccion />;
       case 'pedidos':              return <Pedidos />;
       case 'talleres':             return <Talleres />;
-      case 'materiales':           return <MaterialesTalleres />;
       case 'estudiantes':          return <Estudiantes />;
       case 'programacion':         return <ProgramacionTalleres />;
       case 'matricula':            return <Matricula />;

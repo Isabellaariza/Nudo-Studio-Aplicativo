@@ -567,6 +567,11 @@ export const materialesAPI = {
     if (!res.ok) throw new Error('Error al obtener materiales');
     return res.json();
   },
+  getByProgramacion: async (id: number) => {
+    const res = await fetchWithAuth(`${API_URL}/materiales/por-programacion/${id}`);
+    if (!res.ok) throw new Error('Error al obtener materiales de la programación');
+    return res.json();
+  },
   getInsumos: async () => {
     const res = await fetchWithAuth(`${API_URL}/materiales/insumos`);
     if (!res.ok) throw new Error('Error al obtener insumos');

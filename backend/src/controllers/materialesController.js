@@ -1,5 +1,20 @@
 import pool from '../config/db.js';
 
+export async function listarMaterialesPorProgramacion(req, res, next) {
+  try {
+    const result = await pool.query(`
+      SELECT m.id_materiales, m.nombre_material, m.cantidad, m.costo_total,
+             m.estado, m.unidad_medida, m.id_insumo, m.id_programacion_taller,
+             i.nombre AS insumo_nombre, i.unidad_medida AS insumo_unidad
+      FROM materiales m
+      LEFT JOIN insumos i ON m.id_insumo = i.id_insumos
+      WHERE m.id_programacion_taller = $1 AND m.estado = TRUE
+      ORDER BY m.nombre_material ASC
+    `, [req.params.id]);
+    res.json({ materiales: result.rows });
+  } catch (err) { next(err); }
+}
+
 export async function listarMateriales(req, res, next) {
   try {
     const result = await pool.query(`

@@ -55,7 +55,7 @@ function ModalAdd({ estudiantes, talleres, onSubmit, onClose }: {
             <option key={t.id_talleres} value={t.id_programacion}>
               {t.nombre_taller}
               {t.fecha ? ` — ${new Date(t.fecha).toLocaleDateString('es-CO')}` : ''}
-              {t.hora ? ` ${t.hora.slice(0,5)}` : ''}
+              {t.hora ? ` ${fmt12(t.hora)}` : ''}
               {t.precio ? ` · $${Number(t.precio).toLocaleString()} COP` : ''}
             </option>
           ))}

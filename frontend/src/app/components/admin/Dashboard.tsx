@@ -15,6 +15,12 @@ import {
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { dashboardAPI } from '../../lib/api';
 
+const fmt12 = (hora: string) => {
+  if (!hora) return '—';
+  const [h, m] = hora.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};
+
 const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 const getMedalColor = (rank: number) => {
@@ -348,7 +354,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (section: string) => vo
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Calendar style={{ width: '12px', height: '12px' }} />
-                      <span>{t.hora_inicio} - {t.hora_fin}</span>
+                      <span>{t.hora_inicio ? fmt12(t.hora_inicio) : '—'}{t.hora_fin ? ` - ${fmt12(t.hora_fin)}` : ''}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <UserCheck style={{ width: '12px', height: '12px' }} />

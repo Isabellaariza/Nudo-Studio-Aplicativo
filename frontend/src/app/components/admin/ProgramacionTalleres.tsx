@@ -31,6 +31,90 @@ interface MaterialRow {
   _eliminar?: boolean;
 }
 
+// ─── Selector de insumos en modo local (para modal add) ──────────────────────
+function SelectorMaterialesLocal({ filas, setFilas, insumos }: {
+  filas: MaterialRow[];
+  setFilas: React.Dispatch<React.SetStateAction<MaterialRow[]>>;
+  insumos: any[];
+}) {
+  const insumosSeleccionados = new Set(filas.map(f => f.id_insumo));
+
+  const toggleInsumo = (ins: any) => {
+    if (insumosSeleccionados.has(ins.id_insumos)) {
+      setFilas(prev => prev.filter(f => f.id_insumo !== ins.id_insumos));
+    } else {
+      setFilas(prev => [...prev, {
+        id_insumo: ins.id_insumos,
+        nombre_material: ins.nombre,
+        unidad_medida: ins.unidad_medida || '',
+        cantidad: 1,
+        costo_total: 0,
+      }]);
+    }
+  };
+
+  const updateFila = (id_insumo: number, campo: 'cantidad' | 'costo_total', valor: number) => {
+    setFilas(prev => prev.map(f => f.id_insumo === id_insumo ? { ...f, [campo]: valor } : f));
+  };
+
+  const costoTotal = filas.reduce((s, f) => s + f.costo_total, 0);
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <label style={lStyle}>Materiales del taller</label>
+      <div style={{ border: '1px solid rgba(45,75,57,0.12)', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: '#2D4B39', color: '#fff', padding: '8px 14px', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em' }}>SELECCIONAR INSUMOS</div>
+        <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+          {insumos.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>No hay insumos disponibles</div>
+          ) : insumos.map((ins: any) => {
+            const sel = insumosSeleccionados.has(ins.id_insumos);
+            const fila = filas.find(f => f.id_insumo === ins.id_insumos);
+            return (
+              <div key={ins.id_insumos} style={{ borderBottom: '1px solid rgba(45,75,57,0.07)' }}>
+                <div onClick={() => toggleInsumo(ins)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 14px', cursor: 'pointer', background: sel ? 'rgba(45,75,57,0.05)' : 'white' }}>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${sel ? '#2D4B39' : '#D1D5DB'}`, background: sel ? '#2D4B39' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {sel && <span style={{ color: '#fff', fontSize: '10px', fontWeight: 700 }}>✓</span>}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#2D4B39' }}>{ins.nombre}</div>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Medida: {ins.unidad_medida || '—'} · Stock: {ins.stock}</div>
+                  </div>
+                </div>
+                {sel && fila && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '6px 14px 10px 42px', background: 'rgba(45,75,57,0.03)' }}>
+                    <div>
+                      <label style={{ ...lStyle, fontSize: '11px', marginBottom: '3px' }}>Cantidad *</label>
+                      <input type="number" min={1} value={fila.cantidad}
+                        onChange={e => updateFila(ins.id_insumos, 'cantidad', Number(e.target.value))}
+                        onClick={e => e.stopPropagation()}
+                        style={{ ...iStyle, padding: '7px 10px', fontSize: '13px' }} />
+                    </div>
+                    <div>
+                      <label style={{ ...lStyle, fontSize: '11px', marginBottom: '3px' }}>Costo interno (COP)</label>
+                      <input type="number" min={0} value={fila.costo_total}
+                        onChange={e => updateFila(ins.id_insumos, 'costo_total', Number(e.target.value))}
+                        onClick={e => e.stopPropagation()}
+                        style={{ ...iStyle, padding: '7px 10px', fontSize: '13px' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {filas.length > 0 && (
+        <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(184,134,11,0.06)', border: '1px solid rgba(184,134,11,0.15)', display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#B8860B' }}>
+          <span>{filas.length} insumo(s) seleccionado(s)</span>
+          <span>Costo total: ${costoTotal.toLocaleString('es-CO')} COP</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Modal de selección/edición de materiales ───────────────────────────────
 function MaterialesModal({ idProgramacion, onClose }: { idProgramacion: number; onClose: () => void }) {
   const [insumos, setInsumos] = useState<any[]>([]);
@@ -294,10 +378,11 @@ function SeccionMateriales({ idProgramacion }: { idProgramacion: number }) {
   );
 }
 
-function ModalContent({ type, prog, form, onChange, onSubmit, instructores }: {
+function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insumos, filasLocales, setFilasLocales }: {
   type: 'view' | 'edit' | 'add'; prog?: any;
   form: FormState; onChange: (f: keyof FormState, v: any) => void;
   onSubmit: () => void; instructores: any[];
+  insumos: any[]; filasLocales: MaterialRow[]; setFilasLocales: React.Dispatch<React.SetStateAction<MaterialRow[]>>;
 }) {
   if (type === 'view' && prog) {
     return (
@@ -362,11 +447,14 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores }: {
           </select>
         </div>
       )}
+      {type === 'add' && (
+        <SelectorMaterialesLocal filas={filasLocales} setFilas={setFilasLocales} insumos={insumos} />
+      )}
       {type === 'edit' && prog && (
         <SeccionMateriales idProgramacion={prog.id_programacion_taller} />
       )}
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
-        style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: type === 'edit' ? '16px' : '0' }}>
+        style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '16px' }}>
         {type === 'add' ? 'Crear Programación de Taller' : 'Guardar Cambios'}
       </motion.button>
     </div>
@@ -376,6 +464,7 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores }: {
 export function ProgramacionTalleres() {
   const [programaciones, setProgramaciones] = useState<any[]>([]);
   const [instructores, setInstructores] = useState<any[]>([]);
+  const [insumos, setInsumos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [modalType, setModalType] = useState<'view' | 'edit' | 'add' | null>(null);
@@ -383,12 +472,18 @@ export function ProgramacionTalleres() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [filasLocales, setFilasLocales] = useState<MaterialRow[]>([]);
 
   const cargar = async () => {
     try {
-      const [pData, iData] = await Promise.all([programacionAPI.getAll(), talleresAPI.getInstructores()]);
+      const [pData, iData, insData] = await Promise.all([
+        programacionAPI.getAll(),
+        talleresAPI.getInstructores(),
+        materialesAPI.getInsumos(),
+      ]);
       setProgramaciones(pData.programaciones);
       setInstructores(iData.instructores);
+      setInsumos(insData.insumos);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar');
     } finally { setLoading(false); }
@@ -399,6 +494,7 @@ export function ProgramacionTalleres() {
   const openModal = (type: 'view' | 'edit' | 'add', p?: any) => {
     setModalType(type);
     setSelected(p || null);
+    setFilasLocales([]);
     if (type === 'edit' && p) {
       setForm({
         nombre_taller: p.nombre_taller || '',
@@ -412,16 +508,33 @@ export function ProgramacionTalleres() {
     }
   };
 
-  const closeModal = () => { setModalType(null); setSelected(null); };
+  const closeModal = () => { setModalType(null); setSelected(null); setFilasLocales([]); };
 
   const handleSubmit = async () => {
     if (!form.nombre_taller) return toast.error('El nombre es obligatorio');
     if (!form.id_empleado) return toast.error('El instructor es obligatorio');
     if (!form.precio) return toast.error('El precio es obligatorio');
+    // Validar materiales locales
+    for (const f of filasLocales) {
+      if (f.cantidad <= 0) return toast.error(`Cantidad inválida para "${f.nombre_material}"`);
+      if (f.costo_total < 0) return toast.error(`Costo negativo para "${f.nombre_material}"`);
+    }
     try {
       if (modalType === 'add') {
-        await programacionAPI.create(form);
-        toast.success('Archivo de taller creado');
+        const data = await programacionAPI.create(form);
+        const idNuevo = data.programacion.id_programacion_taller;
+        // Guardar materiales locales con el ID recién creado
+        for (const f of filasLocales) {
+          await materialesAPI.create({
+            nombre_material: f.nombre_material,
+            cantidad: f.cantidad,
+            costo_total: f.costo_total,
+            unidad_medida: f.unidad_medida,
+            id_insumo: f.id_insumo,
+            id_programacion_taller: idNuevo,
+          });
+        }
+        toast.success('Programación y materiales creados correctamente');
       } else if (modalType === 'edit' && selected) {
         await programacionAPI.update(selected.id_programacion_taller, form);
         toast.success('Archivo actualizado');
@@ -570,8 +683,9 @@ export function ProgramacionTalleres() {
 
       {modalType && (
         <Modal isOpen={true} onClose={closeModal}
-          title={modalType === 'add' ? 'Nueva Programación de Taller' : modalType === 'edit' ? 'Editar Archivo' : 'Detalle del Taller'}>
+          title={modalType === 'add' ? 'Nueva Programación de Taller' : modalType === 'edit' ? 'Editar Programación' : 'Detalle del Taller'}>
           <ModalContent type={modalType} prog={selected} form={form} instructores={instructores}
+            insumos={insumos} filasLocales={filasLocales} setFilasLocales={setFilasLocales}
             onChange={(f, v) => setForm(p => ({ ...p, [f]: v }))} onSubmit={handleSubmit} />
         </Modal>
       )}

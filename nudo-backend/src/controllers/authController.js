@@ -29,7 +29,7 @@ export async function login(req, res, next) {
     // Buscar usuario — el rol directo en usuarios tiene prioridad sobre clientes/empleados
     const result = await pool.query(
       `SELECT u.id_usuarios, u.nombre, u.email, u.estado, u.contrasena_hash,
-              COALESCE(ru.nombre, rc.nombre, re.nombre, 'administrador') AS nombre_rol,
+              COALESCE(ru.nombre, rc.nombre, re.nombre) AS nombre_rol,
               COALESCE(ru.id_rol, rc.id_rol, re.id_rol) AS id_rol,
               COALESCE(ru.permisos, rc.permisos, re.permisos, '{}') AS permisos
        FROM usuarios u
@@ -54,9 +54,13 @@ export async function login(req, res, next) {
     if (!passwordValida)
       return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
 
-    const token = generarToken(usuario);
+    if (!usuario.nombre_rol) {
+      return res.status(403).json({
+        mensaje: 'Tu cuenta no tiene un rol asignado. Contacta al administrador.',
+      });
+    }
 
-    console.log('LOGIN DEBUG:', { nombre_rol: usuario.nombre_rol, id_rol: usuario.id_rol, email: usuario.email });
+    const token = generarToken(usuario);
 
     res.json({
       mensaje: `¡Bienvenido/a ${usuario.nombre}!`,
@@ -96,9 +100,9 @@ export async function registro(req, res, next) {
     const hash = await bcrypt.hash(contrasena, 10);
 
     const nuevoUsuario = await pool.query(
-      `INSERT INTO usuarios (nombre, email, contrasena_hash, telefono, direccion, tipo_documento, numero_documento, estado)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE) RETURNING id_usuarios, nombre, email`,
-      [nombre, correo.toLowerCase(), hash, telefono || null, direccion || null, tipo_documento || null, numero_documento || null]
+      `INSERT INTO usuarios (nombre, email, contrasena_hash, telefono, direccion, tipo_documento, numero_documento, estado, id_rol)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8) RETURNING id_usuarios, nombre, email`,
+      [nombre, correo.toLowerCase(), hash, telefono || null, direccion || null, tipo_documento || null, numero_documento || null, rolResult.rows[0].id_rol]
     );
 
     await pool.query(
@@ -128,7 +132,7 @@ export async function perfil(req, res, next) {
        FROM usuarios u
        LEFT JOIN clientes c ON c.id_usuarios = u.id_usuarios
        LEFT JOIN empleados e ON e.id_usuarios = u.id_usuarios
-       LEFT JOIN roles r ON r.id_rol = COALESCE(c.id_rol, e.id_rol)
+       LEFT JOIN roles r ON r.id_rol = COALESCE(u.id_rol, c.id_rol, e.id_rol)
        WHERE u.id_usuarios = $1`,
       [req.usuario.id]
     );

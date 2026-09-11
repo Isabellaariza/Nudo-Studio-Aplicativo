@@ -160,7 +160,7 @@ export async function aprobarAbono(req, res, next) {
     await client.query('BEGIN');
 
     const abonoRes = await client.query(
-      `SELECT a.*, t.id_talleres, t.id_programacion AS id_programacion_taller, pt.nombre_taller, pt.precio
+      `SELECT a.*, t.id_talleres, t.id_programacion AS id_prog_taller, pt.nombre_taller, pt.precio
        FROM abonos a
        LEFT JOIN talleres t ON a.id_taller = t.id_talleres
        LEFT JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
@@ -215,7 +215,7 @@ export async function aprobarAbono(req, res, next) {
       // Marcar este abono como completo
       await client.query(`UPDATE abonos SET estado = 'completo' WHERE id_abono = $1`, [req.params.id]);
       // Activar la matrícula
-      await client.query(`UPDATE matricula SET estado = 'activo' WHERE id_matricula = $1`, [abono.id_matricula]);
+      await client.query(`UPDATE matricula SET estado = 'activa' WHERE id_matricula = $1`, [abono.id_matricula]);
       // Cerrar el primer abono (saldo → 0, estado → completo)
       await client.query(
         `UPDATE abonos SET saldo_pendiente = 0, estado = 'completo'
@@ -245,19 +245,19 @@ export async function aprobarAbono(req, res, next) {
     // Verificar que no esté ya matriculado (evitar duplicados)
     const yaMatriculado = await client.query(
       `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_programacion = $2`,
-      [id_estudiante, abono.id_programacion_taller]
+      [id_estudiante, abono.id_taller]
     );
 
     let id_matricula;
     if (yaMatriculado.rows.length) {
       id_matricula = yaMatriculado.rows[0].id_matricula;
     } else {
-      // Crear matrícula: pendiente_pago si debe saldo, activo si pagó todo
-      const estadoMatricula = tieneSaldo ? 'pendiente_pago' : 'activo';
+      // Crear matrícula: id_programacion apunta a talleres.id_talleres (C2)
+      const estadoMatricula = tieneSaldo ? 'pendiente_pago' : 'activa';
       const matriculaRes = await client.query(
         `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
          VALUES ($1, $2, CURRENT_DATE, $3) RETURNING id_matricula`,
-        [id_estudiante, abono.id_programacion_taller, estadoMatricula]
+        [id_estudiante, abono.id_taller, estadoMatricula]
       );
       id_matricula = matriculaRes.rows[0].id_matricula;
       await client.query(`UPDATE abonos SET id_matricula = $1 WHERE id_abono = $2`, [id_matricula, req.params.id]);

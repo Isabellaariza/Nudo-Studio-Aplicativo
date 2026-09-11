@@ -27,7 +27,7 @@ export async function obtenerEstadisticas(req, res, next) {
         ORDER BY t.hora
       `),
 
-      pool.query(`SELECT COUNT(*) AS total FROM matricula WHERE estado IN ('activa', 'activo', 'pendiente_pago')`),
+      pool.query(`SELECT COUNT(*) AS total FROM matricula WHERE estado IN ('activa', 'pendiente_pago')`),
 
       pool.query(`
         SELECT pr.nombre_producto AS nombre,

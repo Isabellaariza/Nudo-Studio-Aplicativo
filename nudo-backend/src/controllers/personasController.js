@@ -88,7 +88,7 @@ export async function eliminarCliente(req, res, next) {
   try {
     const ventas = await pool.query(`SELECT id_ventas FROM ventas WHERE id_cliente = $1 LIMIT 1`, [req.params.id]);
     if (ventas.rows.length) return res.status(403).json({ mensaje: 'No se puede eliminar: el cliente tiene ventas registradas' });
-    const pedidos = await pool.query(`SELECT id_pedidoss FROM pedidos WHERE id_cliente = $1 LIMIT 1`, [req.params.id]);
+    const pedidos = await pool.query(`SELECT id_pedidos FROM pedidos WHERE id_cliente = $1 LIMIT 1`, [req.params.id]);
     if (pedidos.rows.length) return res.status(403).json({ mensaje: 'No se puede eliminar: el cliente tiene pedidos registrados' });
     await pool.query(`DELETE FROM clientes WHERE id_cliente = $1`, [req.params.id]);
     res.json({ mensaje: 'Cliente eliminado' });

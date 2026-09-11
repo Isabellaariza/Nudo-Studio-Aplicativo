@@ -52,9 +52,9 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
     if (existe.rows.length) return res.status(409).json({ mensaje: 'Ya estás inscrito en este taller' });
 
     const result = await pool.query(
-      `INSERT INTO matricula (id_estudiante, id_programacion, nombre_taller, fecha_matricula, estado)
-       VALUES ($1, $2, $3, CURRENT_DATE, 'pendiente') RETURNING *`,
-      [id_estudiante, id_taller, nombre_taller]
+      `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
+       VALUES ($1, $2, CURRENT_DATE, 'pendiente_pago') RETURNING *`,
+      [id_estudiante, id_taller]
     );
 
     // Promover rol a 'estudiante' en usuarios y clientes

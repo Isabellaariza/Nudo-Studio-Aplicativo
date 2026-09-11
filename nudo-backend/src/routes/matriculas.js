@@ -18,8 +18,8 @@ router.get('/mis-matriculas', verificarToken, async (req, res, next) => {
              t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
-      LEFT JOIN talleres t ON t.id_programacion = pt.id_programacion_taller
+      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       WHERE e.id_usuarios = $1
       ORDER BY m.id_matricula DESC
     `, [req.usuario.id]);
@@ -39,8 +39,8 @@ router.get('/', verificarToken, async (req, res, next) => {
              t.fecha AS fecha_taller, t.hora, t.lugar
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
-      LEFT JOIN talleres t ON t.id_programacion = pt.id_programacion_taller
+      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       ORDER BY m.id_matricula DESC
     `);
     res.json({ matriculas: result.rows, total: result.rowCount });
@@ -70,7 +70,7 @@ router.post('/', verificarToken, async (req, res, next) => {
 
     const result = await pool.query(
       `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
-       VALUES ($1, $2, CURRENT_DATE, 'activa') RETURNING *`,
+       VALUES ($1, $2, CURRENT_DATE, 'pendiente_pago') RETURNING *`,
       [id_estudiante, id_programacion]
     );
 
@@ -97,8 +97,8 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
              pt.nombre_taller, pt.precio,             t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
-      LEFT JOIN talleres t ON t.id_programacion = pt.id_programacion_taller
+      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       WHERE m.id_matricula = $1`, [req.params.id]
     );
     if (!matRes.rows.length) return res.status(404).json({ mensaje: 'Matrícula no encontrada' });
@@ -113,7 +113,7 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
     if (estado === 'cancelada' || estado === 'completada') {
       await revertirACliente(pool, mat.id_estudiante);
     }
-    // Si se reactiva, promover de nuevo a 'estudiante'
+    // Si se activa, promover de nuevo a 'estudiante'
     if (estado === 'activa') {
       await promoverAEstudiante(pool, mat.id_estudiante);
     }

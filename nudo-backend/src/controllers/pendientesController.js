@@ -1,30 +1,6 @@
 import { enviarCorreoPedidoCompletado } from '../config/email.js';
 import pool from '../config/db.js';
 
-// Helper reutilizable para registrar venta desde pedido completado
-async function registrarVentaDesdePedido(client, id_pedidos) {
-  const pedidoRes = await client.query(
-    `SELECT p.id_cliente, p.total, p.id_empleado,
-            STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
-            SUM(d.cantidad) AS cantidad_total
-     FROM pedidos p
-     LEFT JOIN detalle_pedido d ON p.id_pedidos = d.id_pedidos
-     LEFT JOIN productos pr ON d.id_producto = pr.id_productos
-     WHERE p.id_pedidos = $1
-     GROUP BY p.id_cliente, p.total, p.id_empleado`,
-    [id_pedidos]
-  );
-  if (!pedidoRes.rows.length) return;
-  const { id_cliente, total, id_empleado, producto, cantidad_total } = pedidoRes.rows[0];
-  const existe = await client.query(`SELECT id_ventas FROM ventas WHERE id_pedidos = $1`, [id_pedidos]);
-  if (existe.rows.length) return;
-  await client.query(
-    `INSERT INTO ventas (fecha, producto, cantidad, total, estado, id_cliente, id_empleado, id_pedidos)
-     VALUES (NOW(), $1, $2, $3, TRUE, $4, $5, $6)`,
-    [producto || 'Producto', cantidad_total || 1, total || 0, id_cliente, id_empleado || null, id_pedidos]
-  );
-}
-
 // ══════════════════════════════════════════════════════════════
 //  ROLES Y PERMISOS
 // ══════════════════════════════════════════════════════════════
@@ -404,7 +380,6 @@ export async function completarPedidoProduccion(req, res, next) {
       [req.params.id]
     );
     if (!result.rows.length) throw new Error('Pedido no encontrado');
-    await registrarVentaDesdePedido(client, req.params.id);
     await client.query('COMMIT');
 
     const pedidoInfo = await pool.query(
@@ -456,7 +431,8 @@ export async function agregarProductosPedido(req, res, next) {
       );
     }
 
-    await registrarVentaDesdePedido(client, id);
+    // La venta ya fue registrada al aprobar el comprobante (EN_PRODUCCION).
+    // Produccion NO genera una segunda venta.
     await client.query('COMMIT');
 
     const pedidoInfo = await pool.query(

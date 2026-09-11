@@ -50,7 +50,7 @@ export async function revertirACliente(client, id_estudiante) {
     SELECT COUNT(*) AS total
     FROM matricula
     WHERE id_estudiante = $1
-      AND estado IN ('activa', 'pendiente')
+      AND estado IN ('activa', 'pendiente_pago')
   `, [id_estudiante]);
 
   if (Number(activas.rows[0].total) > 0) return; // aún tiene talleres activos

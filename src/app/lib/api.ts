@@ -330,11 +330,6 @@ export const ventasAPI = {
     if (!res.ok) throw new Error('Error al obtener ventas');
     return res.json();
   },
-  create: async (data: any) => {
-    const res = await fetchWithAuth(`${API_URL}/ventas`, { method: 'POST', body: JSON.stringify(data) });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
-    return res.json();
-  },
   updateEstado: async (id: number, estado: boolean) => {
     const res = await fetchWithAuth(`${API_URL}/ventas/${id}`, { method: 'PUT', body: JSON.stringify({ estado }) });
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }

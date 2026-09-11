@@ -18,6 +18,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [inscritosIds, setInscritosIds] = useState<number[]>(() => {
+    if (!user) return [];
     try { return JSON.parse(localStorage.getItem('talleres_inscritos') || '[]'); } catch { return []; }
   });
 

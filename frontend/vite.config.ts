@@ -26,6 +26,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Raíz del proyecto frontend (index.html está aquí)
+  root: __dirname,
   build: {
     rollupOptions: {
       output: {

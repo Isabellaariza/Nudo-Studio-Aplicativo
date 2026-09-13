@@ -6,7 +6,7 @@ import { AdminDetailSection, AdminDetailRow, AdminDetailGrid } from './AdminDeta
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { Tooltip } from './Tooltip';
 import { toast } from 'sonner';
-import { programacionAPI, talleresAPI, materialesAPI } from '../../lib/api';
+import { programacionAPI, materialesAPI } from '../../lib/api';
 
 const iStyle = {
   width: '100%', padding: '12px 16px', borderRadius: '10px',
@@ -16,10 +16,10 @@ const iStyle = {
 const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' };
 
 interface FormState {
-  nombre_taller: string; nombre_instructor: string;
-  precio: number; descripcion: string; id_empleado: number | '';
+  nombre_taller: string;
+  precio: number; descripcion: string;
 }
-const emptyForm: FormState = { nombre_taller: '', nombre_instructor: '', precio: 0, descripcion: '', id_empleado: '' };
+const emptyForm: FormState = { nombre_taller: '', precio: 0, descripcion: '' };
 
 interface MaterialRow {
   id_materiales?: number;
@@ -378,10 +378,10 @@ function SeccionMateriales({ idProgramacion }: { idProgramacion: number }) {
   );
 }
 
-function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insumos, filasLocales, setFilasLocales }: {
+function ModalContent({ type, prog, form, onChange, onSubmit, insumos, filasLocales, setFilasLocales }: {
   type: 'view' | 'edit' | 'add'; prog?: any;
   form: FormState; onChange: (f: keyof FormState, v: any) => void;
-  onSubmit: () => void; instructores: any[];
+  onSubmit: () => void;
   insumos: any[]; filasLocales: MaterialRow[]; setFilasLocales: React.Dispatch<React.SetStateAction<MaterialRow[]>>;
 }) {
   if (type === 'view' && prog) {
@@ -389,7 +389,6 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insu
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <AdminDetailSection title="INFORMACIÓN DEL TALLER" icon={<BookOpen style={{ width: '20px', height: '20px' }} />} color="green">
           <AdminDetailRow label="Nombre del Taller" value={prog.nombre_taller} />
-          <AdminDetailRow label="Instructor"         value={prog.instructor_nombre || prog.nombre_instructor} />
           <AdminDetailGrid>
             <AdminDetailRow label="Precio" value={`${Number(prog.precio).toLocaleString('es-CO')} COP`} />
           </AdminDetailGrid>
@@ -411,22 +410,6 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insu
       <div style={{ marginBottom: '16px' }}>
         <label style={lStyle}>Nombre del Taller *</label>
         <input type="text" value={form.nombre_taller} onChange={e => onChange('nombre_taller', e.target.value)} placeholder="Ej: Macramé Básico" style={iStyle} />
-      </div>
-      <div style={{ marginBottom: '16px' }}>
-        <label style={lStyle}>Instructor *</label>
-        <select value={form.id_empleado} onChange={e => {
-          const id = e.target.value ? Number(e.target.value) : '';
-          onChange('id_empleado', id);
-          if (id) {
-            const inst = instructores.find((i: any) => i.id_empleado === Number(id));
-            if (inst) onChange('nombre_instructor', inst.nombre_completo);
-          }
-        }} style={iStyle}>
-          <option value="">Seleccionar instructor...</option>
-          {instructores.map((i: any) => (
-            <option key={i.id_empleado} value={i.id_empleado}>{i.nombre_completo}</option>
-          ))}
-        </select>
       </div>
       <div style={{ marginBottom: '16px' }}>
         <label style={lStyle}>Precio (COP) *</label>
@@ -455,7 +438,7 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insu
       )}
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
         style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '16px' }}>
-        {type === 'add' ? 'Crear Programación de Taller' : 'Guardar Cambios'}
+        {type === 'add' ? 'Crear Taller' : 'Guardar Cambios'}
       </motion.button>
     </div>
   );
@@ -463,7 +446,6 @@ function ModalContent({ type, prog, form, onChange, onSubmit, instructores, insu
 
 export function ProgramacionTalleres() {
   const [programaciones, setProgramaciones] = useState<any[]>([]);
-  const [instructores, setInstructores] = useState<any[]>([]);
   const [insumos, setInsumos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -476,13 +458,11 @@ export function ProgramacionTalleres() {
 
   const cargar = async () => {
     try {
-      const [pData, iData, insData] = await Promise.all([
+      const [pData, insData] = await Promise.all([
         programacionAPI.getAll(),
-        talleresAPI.getInstructores(),
         materialesAPI.getInsumos(),
       ]);
       setProgramaciones(pData.programaciones);
-      setInstructores(iData.instructores);
       setInsumos(insData.insumos);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar');
@@ -498,10 +478,8 @@ export function ProgramacionTalleres() {
     if (type === 'edit' && p) {
       setForm({
         nombre_taller: p.nombre_taller || '',
-        nombre_instructor: p.nombre_instructor || '',
         precio: Number(p.precio) || 0,
         descripcion: p.descripcion || '',
-        id_empleado: p.id_empleado || '',
       });
     } else if (type === 'add') {
       setForm(emptyForm);
@@ -512,7 +490,6 @@ export function ProgramacionTalleres() {
 
   const handleSubmit = async () => {
     if (!form.nombre_taller) return toast.error('El nombre es obligatorio');
-    if (!form.id_empleado) return toast.error('El instructor es obligatorio');
     if (!form.precio) return toast.error('El precio es obligatorio');
     // Validar materiales locales
     for (const f of filasLocales) {
@@ -556,8 +533,7 @@ export function ProgramacionTalleres() {
   };
 
   const filtered = programaciones.filter(p =>
-    (p.nombre_taller || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.instructor_nombre || p.nombre_instructor || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (p.nombre_taller || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const activos = programaciones.filter(p => p.estado).length;
@@ -607,7 +583,7 @@ export function ProgramacionTalleres() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#2D4B39', color: '#fff' }}>
               <tr>
-                {['TALLER', 'INSTRUCTOR', 'PRECIO', 'MATERIALES', 'ESTADO', 'ACCIONES'].map(h => (
+                {['TALLER', 'PRECIO', 'MATERIALES', 'ESTADO', 'ACCIONES'].map(h => (
                   <th key={h} style={{ padding: '16px 20px', textAlign: ['PRECIO', 'MATERIALES', 'ESTADO', 'ACCIONES'].includes(h) ? 'center' : 'left', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -627,12 +603,6 @@ export function ProgramacionTalleres() {
                           <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D4B39' }}>{p.nombre_taller}</div>
                           {p.descripcion && <div style={{ fontSize: '11px', color: '#9CA3AF', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.descripcion}</div>}
                         </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 20px', fontSize: '13px', color: '#6B7280' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Users style={{ width: '13px', height: '13px', color: '#B8860B' }} />
-                        {p.instructor_nombre || p.nombre_instructor || '—'}
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
@@ -674,7 +644,7 @@ export function ProgramacionTalleres() {
                 ))}
               </AnimatePresence>
               {filtered.length === 0 && !loading && (
-                <tr><td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#9CA3AF' }}>No se encontraron talleres</td></tr>
+                <tr><td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#9CA3AF' }}>No se encontraron talleres</td></tr>
               )}
             </tbody>
           </table>
@@ -684,7 +654,7 @@ export function ProgramacionTalleres() {
       {modalType && (
         <Modal isOpen={true} onClose={closeModal}
           title={modalType === 'add' ? 'Nueva Programación de Taller' : modalType === 'edit' ? 'Editar Programación' : 'Detalle del Taller'}>
-          <ModalContent type={modalType} prog={selected} form={form} instructores={instructores}
+          <ModalContent type={modalType} prog={selected} form={form}
             insumos={insumos} filasLocales={filasLocales} setFilasLocales={setFilasLocales}
             onChange={(f, v) => setForm(p => ({ ...p, [f]: v }))} onSubmit={handleSubmit} />
         </Modal>

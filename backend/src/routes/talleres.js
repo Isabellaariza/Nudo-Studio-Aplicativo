@@ -1,17 +1,18 @@
 // src/routes/talleres.js
 import { Router } from 'express';
 import { verificarToken, verificarRol } from '../middleware/auth.js';
-import { listarTalleres, crearTaller, actualizarTaller, eliminarTaller, listarInstructores, completarTaller } from '../controllers/talleresController.js';
+import { listarTalleres, crearTaller, actualizarTaller, eliminarTaller, listarInstructores, completarTaller, verificarDisponibilidad } from '../controllers/talleresController.js';
 import pool from '../config/db.js';
 import { promoverAEstudiante } from '../config/rolHelper.js';
 
 const router = Router();
-router.get('/instructores', verificarToken, listarInstructores);
-router.get('/',        listarTalleres);
-router.post('/',       verificarToken, verificarRol('administrador', 'empleado'), crearTaller);
-router.put('/:id/completar', verificarToken, verificarRol('administrador', 'empleado'), completarTaller);
-router.put('/:id',     verificarToken, verificarRol('administrador', 'empleado'), actualizarTaller);
-router.delete('/:id',  verificarToken, verificarRol('administrador'), eliminarTaller);
+router.get('/instructores',    verificarToken, listarInstructores);
+router.get('/disponibilidad',  verificarToken, verificarDisponibilidad);
+router.get('/',                listarTalleres);
+router.post('/',               verificarToken, verificarRol('administrador', 'empleado'), crearTaller);
+router.put('/:id/completar',   verificarToken, verificarRol('administrador', 'empleado'), completarTaller);
+router.put('/:id',             verificarToken, verificarRol('administrador', 'empleado'), actualizarTaller);
+router.delete('/:id',          verificarToken, verificarRol('administrador'), eliminarTaller);
 
 // Inscripción de cliente a taller
 router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
@@ -28,7 +29,7 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
        GROUP BY t.id_talleres, pt.nombre_taller, pt.precio`, [id_taller]
     );
     if (!tallerRes.rows.length) return res.status(404).json({ mensaje: 'Taller no encontrado' });
-    const { inscritos, precio, nombre_taller } = tallerRes.rows[0];
+    const { precio, nombre_taller } = tallerRes.rows[0];
 
     let estRes = await pool.query(`SELECT id_estudiante FROM estudiantes WHERE id_usuarios = $1`, [id_usuario]);
     let id_estudiante;
@@ -57,7 +58,6 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
       [id_estudiante, id_taller]
     );
 
-    // Promover rol a 'estudiante' en usuarios y clientes
     await promoverAEstudiante(pool, id_estudiante);
 
     res.status(201).json({ mensaje: 'Inscripción registrada.', matricula: result.rows[0] });

@@ -4,15 +4,15 @@ export async function listarTalleres(req, res, next) {
   try {
     const { buscar } = req.query;
     let query = `
-      SELECT t.id_talleres, t.fecha, t.hora, t.lugar, t.estado, t.estado_sesion, t.id_programacion,
-             pt.nombre_taller, pt.nombre_instructor, pt.precio, pt.descripcion, pt.id_empleado,
+      SELECT t.id_talleres, t.fecha, t.hora, t.lugar, t.estado, t.estado_sesion, t.id_programacion, t.id_empleado,
+             pt.nombre_taller, pt.precio, pt.descripcion,
              pt.cupos,
              e.nombre_completo AS instructor_nombre,
              COUNT(m.id_matricula) FILTER (WHERE m.estado IN ('activa','pendiente_pago')) AS cupos_ocupados,
              STRING_AGG(DISTINCT mat.nombre_material, ', ' ORDER BY mat.nombre_material) AS materiales
       FROM talleres t
       JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
-      LEFT JOIN empleados e ON pt.id_empleado = e.id_empleado
+      LEFT JOIN empleados e ON t.id_empleado = e.id_empleado
       LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
       LEFT JOIN materiales mat ON mat.id_programacion_taller = pt.id_programacion_taller AND mat.estado = TRUE
       WHERE 1=1
@@ -20,7 +20,7 @@ export async function listarTalleres(req, res, next) {
     const params = [];
     if (buscar) {
       params.push(`%${buscar}%`);
-      query += ` AND (pt.nombre_taller ILIKE $1 OR pt.nombre_instructor ILIKE $1)`;
+      query += ` AND (pt.nombre_taller ILIKE $1 OR e.nombre_completo ILIKE $1)`;
     }
     query += ' GROUP BY t.id_talleres, pt.id_programacion_taller, e.nombre_completo ORDER BY t.fecha ASC';
     const result = await pool.query(query, params);
@@ -40,30 +40,49 @@ export async function listarInstructores(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function verificarDisponibilidad(req, res, next) {
+  const { id_empleado, fecha, excluir_id } = req.query;
+  if (!id_empleado || !fecha) return res.status(400).json({ mensaje: 'Empleado y fecha son requeridos' });
+  try {
+    let q = `
+      SELECT t.id_talleres, pt.nombre_taller
+      FROM talleres t
+      JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
+      WHERE t.id_empleado = $1 AND t.fecha = $2 AND t.estado = TRUE
+    `;
+    const params = [id_empleado, fecha];
+    if (excluir_id) { q += ` AND t.id_talleres != $3`; params.push(excluir_id); }
+    const result = await pool.query(q, params);
+    res.json({ disponible: result.rows.length === 0, conflicto: result.rows[0] || null });
+  } catch (err) { next(err); }
+}
+
 export async function crearTaller(req, res, next) {
-  const { id_programacion, fecha, hora, lugar } = req.body;
+  const { id_programacion, id_empleado, fecha, hora, lugar } = req.body;
   if (!id_programacion || !fecha) return res.status(400).json({ mensaje: 'La programación y la fecha son obligatorias' });
+  if (!id_empleado) return res.status(400).json({ mensaje: 'El instructor es obligatorio' });
   try {
     const result = await pool.query(
-      `INSERT INTO talleres (id_programacion, fecha, hora, lugar, estado, estado_sesion)
-       VALUES ($1, $2, $3, $4, TRUE, 'PROGRAMADO') RETURNING *`,
-      [id_programacion, fecha, hora || null, lugar || null]
+      `INSERT INTO talleres (id_programacion, id_empleado, fecha, hora, lugar, estado, estado_sesion)
+       VALUES ($1, $2, $3, $4, $5, TRUE, 'PROGRAMADO') RETURNING *`,
+      [id_programacion, id_empleado, fecha, hora || null, lugar || null]
     );
     res.status(201).json({ mensaje: 'Taller publicado', taller: result.rows[0] });
   } catch (err) { next(err); }
 }
 
 export async function actualizarTaller(req, res, next) {
-  const { fecha, hora, lugar, estado } = req.body;
+  const { fecha, hora, lugar, estado, id_empleado } = req.body;
   try {
     const result = await pool.query(
       `UPDATE talleres SET
-         fecha   = COALESCE($1, fecha),
-         hora    = COALESCE($2, hora),
-         lugar   = COALESCE($3, lugar),
-         estado  = COALESCE($4, estado)
-       WHERE id_talleres = $5 RETURNING *`,
-      [fecha, hora || null, lugar || null, estado, req.params.id]
+         fecha       = COALESCE($1, fecha),
+         hora        = COALESCE($2, hora),
+         lugar       = COALESCE($3, lugar),
+         estado      = COALESCE($4, estado),
+         id_empleado = COALESCE($5, id_empleado)
+       WHERE id_talleres = $6 RETURNING *`,
+      [fecha, hora || null, lugar || null, estado, id_empleado || null, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ mensaje: 'Taller no encontrado' });
     res.json({ mensaje: 'Taller actualizado', taller: result.rows[0] });
@@ -98,7 +117,6 @@ export async function completarTaller(req, res, next) {
 
     const id_programacion = tallerRes.rows[0].id_programacion;
 
-    // Obtener materiales con su insumo
     const materialesRes = await client.query(
       `SELECT m.id_insumo, m.cantidad, i.nombre, i.stock
        FROM materiales m
@@ -107,7 +125,6 @@ export async function completarTaller(req, res, next) {
       [id_programacion]
     );
 
-    // Verificar stock suficiente
     for (const mat of materialesRes.rows) {
       if (Number(mat.stock) < Number(mat.cantidad)) {
         await client.query('ROLLBACK');
@@ -117,7 +134,6 @@ export async function completarTaller(req, res, next) {
       }
     }
 
-    // Descontar stock
     for (const mat of materialesRes.rows) {
       await client.query(`UPDATE insumos SET stock = stock - $1 WHERE id_insumos = $2`, [mat.cantidad, mat.id_insumo]);
     }
@@ -126,29 +142,18 @@ export async function completarTaller(req, res, next) {
       `UPDATE talleres SET estado_sesion = 'COMPLETADO', estado = FALSE WHERE id_talleres = $1`, [id]
     );
 
-    // Devolver estudiantes del taller al rol 'cliente' (en usuarios Y clientes)
     const rolClienteRes = await client.query(`SELECT id_rol FROM roles WHERE LOWER(nombre) = 'cliente' LIMIT 1`);
     if (rolClienteRes.rows.length) {
       const id_rol_cliente = rolClienteRes.rows[0].id_rol;
-      // Revertir en usuarios
       await client.query(`
-        UPDATE usuarios u
-        SET id_rol = $1
-        FROM estudiantes est
-        JOIN matricula m ON m.id_estudiante = est.id_estudiante
-        WHERE m.id_programacion = $2
-          AND est.id_usuarios IS NOT NULL
-          AND u.id_usuarios = est.id_usuarios
+        UPDATE usuarios u SET id_rol = $1
+        FROM estudiantes est JOIN matricula m ON m.id_estudiante = est.id_estudiante
+        WHERE m.id_programacion = $2 AND est.id_usuarios IS NOT NULL AND u.id_usuarios = est.id_usuarios
       `, [id_rol_cliente, id]);
-      // Sincronizar en clientes
       await client.query(`
-        UPDATE clientes c
-        SET id_rol = $1
-        FROM estudiantes est
-        JOIN matricula m ON m.id_estudiante = est.id_estudiante
-        WHERE m.id_programacion = $2
-          AND est.id_usuarios IS NOT NULL
-          AND c.id_usuarios = est.id_usuarios
+        UPDATE clientes c SET id_rol = $1
+        FROM estudiantes est JOIN matricula m ON m.id_estudiante = est.id_estudiante
+        WHERE m.id_programacion = $2 AND est.id_usuarios IS NOT NULL AND c.id_usuarios = est.id_usuarios
       `, [id_rol_cliente, id]);
     }
 

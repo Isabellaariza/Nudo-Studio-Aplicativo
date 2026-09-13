@@ -24,9 +24,10 @@ const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2
 
 interface FormState {
   id_programacion: number | '';
+  id_empleado: number | '';
   fecha: string; hora: string; lugar: string;
 }
-const emptyForm: FormState = { id_programacion: '', fecha: '', hora: '', lugar: '' };
+const emptyForm: FormState = { id_programacion: '', id_empleado: '', fecha: '', hora: '', lugar: '' };
 
 const estadoStyle = (estado: boolean, estado_sesion?: string) => {
   if (estado_sesion === 'COMPLETADO') return { bg: '#D1FAE5', color: '#065F46', label: 'Completado' };
@@ -35,10 +36,11 @@ const estadoStyle = (estado: boolean, estado_sesion?: string) => {
     : { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelado' };
 };
 
-function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }: {
+function ModalContent({ type, taller, form, onChange, onSubmit, programaciones, instructores, conflicto }: {
   type: 'view' | 'edit' | 'add'; taller?: any;
   form: FormState; onChange: (f: keyof FormState, v: any) => void;
-  onSubmit: () => void; programaciones: any[];
+  onSubmit: () => void; programaciones: any[]; instructores: any[];
+  conflicto: string | null;
 }) {
   if (type === 'view' && taller) {
     const b = estadoStyle(taller.estado, taller.estado_sesion);
@@ -73,17 +75,31 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
     <div>
       {type === 'add' && (
         <div style={{ marginBottom: '16px' }}>
-          <label style={lStyle}>Taller (Archivo) *</label>
+          <label style={lStyle}>Taller *</label>
           <select value={form.id_programacion} onChange={e => onChange('id_programacion', e.target.value ? Number(e.target.value) : '')} style={iStyle}>
             <option value="">Seleccionar taller...</option>
             {programaciones.filter((p: any) => p.estado).map((p: any) => (
               <option key={p.id_programacion_taller} value={p.id_programacion_taller}>
-                {p.nombre_taller} — {p.instructor_nombre || p.nombre_instructor}
+                {p.nombre_taller}
               </option>
             ))}
           </select>
         </div>
       )}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={lStyle}>Instructor *</label>
+        <select value={form.id_empleado} onChange={e => onChange('id_empleado', e.target.value ? Number(e.target.value) : '')} style={iStyle}>
+          <option value="">Seleccionar instructor...</option>
+          {instructores.map((i: any) => (
+            <option key={i.id_empleado} value={i.id_empleado}>{i.nombre_completo}</option>
+          ))}
+        </select>
+        {conflicto && (
+          <div style={{ marginTop: '6px', padding: '8px 12px', borderRadius: '8px', background: '#FEF3C7', border: '1px solid #F59E0B', fontSize: '12px', color: '#92400E' }}>
+            ⚠️ Este instructor ya tiene el taller "{conflicto}" en esa fecha
+          </div>
+        )}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div>
           <label style={lStyle}>Fecha *</label>
@@ -99,13 +115,29 @@ function ModalContent({ type, taller, form, onChange, onSubmit, programaciones }
         <input type="text" value={form.lugar} onChange={e => onChange('lugar', e.target.value)} placeholder="Ej: Sede principal, CC Florida" style={iStyle} />
       </div>
       {type === 'edit' && (
-        <div style={{ marginBottom: '16px' }}>
-          <label style={lStyle}>Estado</label>
-          <select style={iStyle} onChange={e => onChange('estado' as any, e.target.value === 'true')}>
-            <option value="true">Programado</option>
-            <option value="false">Cancelado</option>
-          </select>
-        </div>
+        <>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={lStyle}>Instructor</label>
+            <select value={form.id_empleado} onChange={e => onChange('id_empleado', e.target.value ? Number(e.target.value) : '')} style={iStyle}>
+              <option value="">Seleccionar instructor...</option>
+              {instructores.map((i: any) => (
+                <option key={i.id_empleado} value={i.id_empleado}>{i.nombre_completo}</option>
+              ))}
+            </select>
+            {conflicto && (
+              <div style={{ marginTop: '6px', padding: '8px 12px', borderRadius: '8px', background: '#FEF3C7', border: '1px solid #F59E0B', fontSize: '12px', color: '#92400E' }}>
+                ⚠️ Este instructor ya tiene el taller "{conflicto}" en esa fecha
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={lStyle}>Estado</label>
+            <select style={iStyle} onChange={e => onChange('estado' as any, e.target.value === 'true')}>
+              <option value="true">Programado</option>
+              <option value="false">Cancelado</option>
+            </select>
+          </div>
+        </>
       )}
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onSubmit}
         style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
@@ -120,6 +152,7 @@ const ITEMS_PER_PAGE = 6;
 export function Talleres() {
   const [talleres, setTalleres] = useState<any[]>([]);
   const [programaciones, setProgramaciones] = useState<any[]>([]);
+  const [instructores, setInstructores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,12 +162,14 @@ export function Talleres() {
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [completando, setCompletando] = useState<number | null>(null);
+  const [conflicto, setConflicto] = useState<string | null>(null);
 
   const cargar = async () => {
     try {
-      const [tData, pData] = await Promise.all([talleresAPI.getAll(), programacionAPI.getAll()]);
+      const [tData, pData, iData] = await Promise.all([talleresAPI.getAll(), programacionAPI.getAll(), talleresAPI.getInstructores()]);
       setTalleres(tData.talleres);
       setProgramaciones(pData.programaciones);
+      setInstructores(iData.instructores);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar talleres');
     } finally { setLoading(false); }
@@ -145,9 +180,11 @@ export function Talleres() {
   const openModal = (type: 'view' | 'edit' | 'add', t?: any) => {
     setModalType(type);
     setSelected(t || null);
+    setConflicto(null);
     if (type === 'edit' && t) {
       setForm({
         id_programacion: t.id_programacion || '',
+        id_empleado: t.id_empleado || '',
         fecha: t.fecha ? t.fecha.split('T')[0] : '',
         hora: t.hora ? t.hora.slice(0, 5) : '',
         lugar: t.lugar || '',
@@ -157,11 +194,26 @@ export function Talleres() {
     }
   };
 
-  const closeModal = () => { setModalType(null); setSelected(null); };
+  const closeModal = () => { setModalType(null); setSelected(null); setConflicto(null); };
+
+  const handleFormChange = async (f: keyof FormState, v: any) => {
+    const newForm = { ...form, [f]: v };
+    setForm(newForm);
+    // Verificar conflicto cuando cambia instructor o fecha
+    if ((f === 'id_empleado' || f === 'fecha') && newForm.id_empleado && newForm.fecha) {
+      try {
+        const excluir = modalType === 'edit' && selected ? selected.id_talleres : undefined;
+        const data = await talleresAPI.verificarDisponibilidad(Number(newForm.id_empleado), newForm.fecha, excluir);
+        setConflicto(data.disponible ? null : data.conflicto?.nombre_taller || 'otro taller');
+      } catch { setConflicto(null); }
+    }
+  };
 
   const handleSubmit = async () => {
-    if (modalType === 'add' && !form.id_programacion) return toast.error('Selecciona un taller del archivo');
+    if (modalType === 'add' && !form.id_programacion) return toast.error('Selecciona un taller');
+    if (!form.id_empleado) return toast.error('El instructor es obligatorio');
     if (!form.fecha) return toast.error('La fecha es obligatoria');
+    if (conflicto) return toast.error(`El instructor ya tiene el taller "${conflicto}" en esa fecha`);
     try {
       if (modalType === 'add') {
         await talleresAPI.create(form);
@@ -362,7 +414,8 @@ export function Talleres() {
         <Modal isOpen={true} onClose={closeModal}
           title={modalType === 'add' ? 'Publicar Taller' : modalType === 'edit' ? 'Editar Taller' : 'Detalle del Taller'}>
           <ModalContent type={modalType} taller={selected} form={form} programaciones={programaciones}
-            onChange={(f, v) => setForm(p => ({ ...p, [f]: v }))} onSubmit={handleSubmit} />
+            instructores={instructores} conflicto={conflicto}
+            onChange={handleFormChange} onSubmit={handleSubmit} />
         </Modal>
       )}
 

@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { verificarToken, verificarRol } from '../middleware/auth.js';
-import { listarAbonos, misAbonos, crearAbono, actualizarAbono, anularAbono, aprobarAbono, rechazarAbono, crearAbonoTaller, resubirComprobanteAbono, pagarSaldo } from '../controllers/abonosController.js';
+import { listarAbonos, misAbonos, crearAbono, actualizarAbono, anularAbono, aprobarAbono, rechazarAbono, crearAbonoTaller, resubirComprobanteAbono, pagarSaldo, listarEstudiantesDisponibles } from '../controllers/abonosController.js';
 
 const router = Router();
+router.get('/estudiantes-disponibles', verificarToken, verificarRol('administrador', 'empleado'), listarEstudiantesDisponibles);
 router.get('/',                        verificarToken, verificarRol('administrador', 'empleado'), listarAbonos);
 router.get('/mis-abonos',              verificarToken, misAbonos);
 router.post('/',                       verificarToken, verificarRol('administrador', 'empleado'), crearAbono);

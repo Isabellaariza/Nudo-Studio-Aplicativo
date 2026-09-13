@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DollarSign, Search, Plus, Info, X, CheckCircle, XCircle, Receipt, Ban, Eye, AlertTriangle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from './Modal';
-import { abonosAPI, estudiantesAPI, talleresAPI } from '../../lib/api';
+import { abonosAPI, talleresAPI } from '../../lib/api';
 import { Tooltip } from './Tooltip';
 
 interface Abono {
@@ -30,7 +30,7 @@ const CLOUDINARY_PRESET = 'nudo_studio';
 
 export function Abonos() {
   const [abonos, setAbonos]               = useState<Abono[]>([]);
-  const [estudiantes, setEstudiantes]     = useState<any[]>([]);
+  const [estudiantesDisponibles, setEstudiantesDisponibles] = useState<any[]>([]);
   const [talleres, setTalleres]           = useState<any[]>([]);
   const [loading, setLoading]             = useState(true);
   const [searchTerm, setSearchTerm]       = useState('');
@@ -64,9 +64,9 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
 
   const cargar = async () => {
     try {
-      const [aData, eData, tData] = await Promise.all([
+      const [aData, edData, tData] = await Promise.all([
         abonosAPI.getAll(fechaFiltro || undefined),
-        estudiantesAPI.getAll(),
+        abonosAPI.getEstudiantesDisponibles(),
         talleresAPI.getAll(),
       ]);
       setAbonos(aData.abonos.map((a: any): Abono => {
@@ -92,7 +92,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
           motivo_rechazo:   a.motivo_rechazo,
         };
       }));
-      setEstudiantes(eData.estudiantes || []);
+      setEstudiantesDisponibles(edData.estudiantes || []);
       setTalleres(tData.talleres || []);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar abonos');
@@ -475,13 +475,16 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
               </div>
             </div>
 
-            {/* Botón comprobante */}
+            {/* Botón / visor comprobante */}
             {selected.comprobante_pago && (
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={() => { setShowInfoModal(false); setShowComprobante(selected.comprobante_pago!); }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', borderRadius: '12px', border: '1px solid rgba(184,134,11,0.3)', background: 'rgba(184,134,11,0.04)', color: '#B8860B', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-                <Eye style={{ width: '16px', height: '16px' }} /> Ver Comprobante de Pago
-              </motion.button>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#2D4B39', marginBottom: '10px', letterSpacing: '0.05em' }}>COMPROBANTE DE PAGO</div>
+                {selected.comprobante_pago.match(/\.pdf$/i) ? (
+                  <iframe src={selected.comprobante_pago} style={{ width: '100%', height: '300px', borderRadius: '12px', border: '1px solid rgba(45,75,57,0.1)' }} title="Comprobante" />
+                ) : (
+                  <img src={selected.comprobante_pago} alt="Comprobante" onClick={() => setShowComprobante(selected.comprobante_pago!)} style={{ width: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '12px', border: '1px solid rgba(45,75,57,0.1)', cursor: 'zoom-in' }} />
+                )}
+              </div>
             )}
           </div>
         </Modal>
@@ -489,24 +492,47 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
 
       {/* MODAL NUEVO ABONO */}
       {showFormModal && (
-        <Modal isOpen={true} onClose={() => setShowFormModal(false)} title="Registrar segundo abono">
+        <Modal isOpen={true} onClose={() => setShowFormModal(false)} title="Registrar abono">
           <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '6px' }}>ESTUDIANTE *</label>
-              <select value={formData.id_estudiante} onChange={e => setFormData((p: any) => ({ ...p, id_estudiante: e.target.value }))}
+              <select value={formData.id_estudiante} onChange={e => {
+                const id = e.target.value;
+                const est = estudiantesDisponibles.find((x: any) => String(x.id_estudiante) === id);
+                if (est) {
+                  const precio = Number(est.precio) || 0;
+                  const abonosAprobados = Number(est.abonos_aprobados) || 0;
+                  const saldoPendiente = Number(est.saldo_pendiente) || 0;
+                  // Si ya tiene 1 abono aprobado con saldo, el monto es el saldo
+                  // Si no tiene abonos, el monto mínimo es 50%
+                  const monto = abonosAprobados >= 1 ? saldoPendiente : Math.round(precio * 0.5);
+                  const saldo = abonosAprobados >= 1 ? 0 : precio - monto;
+                  setFormData((p: any) => ({
+                    ...p,
+                    id_estudiante: id,
+                    id_taller: String(est.id_taller),
+                    id_matricula: est.id_matricula || null,
+                    monto_abono: monto,
+                    saldo_pendiente: saldo < 0 ? 0 : saldo,
+                  }));
+                } else {
+                  setFormData((p: any) => ({ ...p, id_estudiante: id, id_taller: '', monto_abono: 0, saldo_pendiente: 0 }));
+                }
+              }}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.15)', fontSize: '14px', outline: 'none', background: 'white' }}>
                 <option value="">Seleccionar estudiante...</option>
-                {estudiantes.map((e: any) => <option key={e.id_estudiante} value={e.id_estudiante}>{e.nombre_completo}</option>)}
+                {estudiantesDisponibles.map((e: any) => (
+                  <option key={`${e.id_estudiante}-${e.id_taller}`} value={e.id_estudiante}>
+                    {e.nombre_completo} — {e.nombre_taller}
+                  </option>
+                ))}
               </select>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '6px' }}>TALLER</label>
-              <select value={formData.id_taller} onChange={e => setFormData((p: any) => ({ ...p, id_taller: e.target.value }))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.15)', fontSize: '14px', outline: 'none', background: 'white' }}>
-                <option value="">Sin taller asociado</option>
-                {talleres.map((t: any) => <option key={t.id_talleres} value={t.id_talleres}>{t.nombre_taller}</option>)}
-              </select>
-            </div>
+            {formData.id_taller && (
+              <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(45,75,57,0.05)', fontSize: '13px', color: '#2D4B39', fontWeight: 600 }}>
+                Taller: {estudiantesDisponibles.find((x: any) => String(x.id_taller) === String(formData.id_taller))?.nombre_taller || formData.id_taller}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '6px' }}>MONTO ABONO</label>
@@ -530,7 +556,7 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadComprobante(f); }}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.15)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }} />
               {uploading && <p style={{ fontSize: '12px', color: '#B8860B', marginTop: '4px' }}>Subiendo imagen...</p>}
-              {formData.comprobante_pago && !uploading && <p style={{ fontSize: '12px', color: '#10B981', marginTop: '4px' }}>✓ Comprobante subido a Cloudinary</p>}
+              {formData.comprobante_pago && !uploading && <p style={{ fontSize: '12px', color: '#10B981', marginTop: '4px' }}>✓ Comprobante subido</p>}
             </div>
             <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={uploading}
               style={{ padding: '14px', borderRadius: '10px', border: 'none', background: uploading ? '#9CA3AF' : 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer' }}>

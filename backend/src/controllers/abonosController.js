@@ -33,7 +33,55 @@ export async function misAbonos(req, res, next) {
   } catch (err) { next(err); }
 }
 
-export async function listarAbonos(req, res, next) {
+export async function listarEstudiantesDisponibles(req, res, next) {
+  try {
+    // Devuelve estudiantes con talleres activos donde aún pueden hacer un abono
+    // Excluye: ya tienen 2 abonos aprobados/completos, estado completo, cancelado o rechazado
+    const result = await pool.query(`
+      SELECT DISTINCT ON (e.id_estudiante, t.id_talleres)
+        e.id_estudiante, e.nombre_completo, e.email, e.telefono,
+        t.id_talleres AS id_taller,
+        pt.nombre_taller,
+        pt.precio,
+        t.fecha AS fecha_taller,
+        m.id_matricula,
+        m.estado AS estado_matricula,
+        (
+          SELECT COUNT(*) FROM abonos a2
+          WHERE a2.id_estudiante = e.id_estudiante
+            AND a2.id_taller = t.id_talleres
+            AND a2.estado IN ('aprobado','completo')
+        ) AS abonos_aprobados,
+        (
+          SELECT COALESCE(SUM(a3.saldo_pendiente),0) FROM abonos a3
+          WHERE a3.id_estudiante = e.id_estudiante
+            AND a3.id_taller = t.id_talleres
+            AND a3.estado = 'aprobado'
+        ) AS saldo_pendiente
+      FROM estudiantes e
+      JOIN matricula m ON m.id_estudiante = e.id_estudiante
+      JOIN talleres t ON t.id_talleres = m.id_programacion AND t.estado = TRUE
+      JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
+      WHERE m.estado IN ('pendiente_pago','activa')
+        AND (
+          SELECT COUNT(*) FROM abonos a2
+          WHERE a2.id_estudiante = e.id_estudiante
+            AND a2.id_taller = t.id_talleres
+            AND a2.estado IN ('aprobado','completo')
+        ) < 2
+        AND NOT EXISTS (
+          SELECT 1 FROM abonos a4
+          WHERE a4.id_estudiante = e.id_estudiante
+            AND a4.id_taller = t.id_talleres
+            AND a4.estado = 'completo'
+        )
+      ORDER BY e.id_estudiante, t.id_talleres
+    `);
+    res.json({ estudiantes: result.rows });
+  } catch (err) { next(err); }
+}
+
+
   try {
     const { fecha } = req.query; // filtro opcional: ?fecha=2024-01-15
     let whereClause = '';

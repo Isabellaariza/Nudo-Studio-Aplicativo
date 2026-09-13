@@ -196,6 +196,13 @@ export const talleresAPI = {
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
     return res.json();
   },
+  verificarDisponibilidad: async (id_empleado: number, fecha: string, excluir_id?: number) => {
+    const q = new URLSearchParams({ id_empleado: String(id_empleado), fecha });
+    if (excluir_id) q.set('excluir_id', String(excluir_id));
+    const res = await fetchWithAuth(`${API_URL}/talleres/disponibilidad?${q}`);
+    if (!res.ok) throw new Error('Error al verificar disponibilidad');
+    return res.json();
+  },
 };
 
 // Clientes
@@ -704,6 +711,11 @@ export const misMatriculasAPI = {
 
 // Abonos
 export const abonosAPI = {
+  getEstudiantesDisponibles: async () => {
+    const res = await fetchWithAuth(`${API_URL}/abonos/estudiantes-disponibles`);
+    if (!res.ok) throw new Error('Error al obtener estudiantes disponibles');
+    return res.json();
+  },
   getAll: async (fecha?: string) => {
     const url = fecha ? `${API_URL}/abonos?fecha=${fecha}` : `${API_URL}/abonos`;
     const res = await fetchWithAuth(url);

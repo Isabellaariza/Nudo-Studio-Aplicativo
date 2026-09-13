@@ -257,11 +257,8 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
             {p.comprobante_pago && (
               <div>
                 <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '8px' }}>Comprobante de Pago</label>
-                {p.comprobante_pago.toLowerCase().endsWith('.pdf') ? (
-                  <a href={p.comprobante_pago} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '10px', background: 'rgba(184,134,11,0.08)', border: '1px solid rgba(184,134,11,0.25)', color: '#B8860B', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
-                    <Download style={{ width: '15px', height: '15px' }} /> Ver PDF
-                  </a>
+                {p.comprobante_pago.toLowerCase().startsWith('data:application/pdf') || p.comprobante_pago.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={p.comprobante_pago} style={{ width: '100%', height: '400px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} title="Comprobante PDF" />
                 ) : (
                   <img src={p.comprobante_pago} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} />
                 )}

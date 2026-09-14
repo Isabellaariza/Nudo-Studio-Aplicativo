@@ -81,7 +81,7 @@ export async function listarEstudiantesDisponibles(req, res, next) {
   } catch (err) { next(err); }
 }
 
-
+export async function listarAbonos(req, res, next) {
   try {
     const { fecha } = req.query; // filtro opcional: ?fecha=2024-01-15
     let whereClause = '';

@@ -39,6 +39,7 @@ export async function listarVentas(req, res, next) {
     let query = `
       SELECT v.id_ventas, v.fecha, v.producto, v.cantidad, v.total, v.estado,
              v.id_pedidos,
+             p.comprobante_pago,
              c.nombre_completo AS cliente, c.id_cliente,
              e.nombre_completo AS empleado,
              COALESCE(
@@ -53,6 +54,7 @@ export async function listarVentas(req, res, next) {
       FROM ventas v
       LEFT JOIN clientes c  ON v.id_cliente  = c.id_cliente
       LEFT JOIN empleados e ON v.id_empleado = e.id_empleado
+      LEFT JOIN pedidos p   ON v.id_pedidos  = p.id_pedidos
       LEFT JOIN detalle_pedido d  ON v.id_pedidos = d.id_pedidos
       LEFT JOIN productos pr      ON d.id_producto = pr.id_productos
       WHERE 1=1
@@ -62,7 +64,7 @@ export async function listarVentas(req, res, next) {
       params.push(`%${buscar}%`);
       query += ` AND (c.nombre_completo ILIKE $1 OR v.producto ILIKE $1)`;
     }
-    query += ' GROUP BY v.id_ventas, c.nombre_completo, c.id_cliente, e.nombre_completo ORDER BY v.fecha DESC';
+    query += ' GROUP BY v.id_ventas, p.comprobante_pago, c.nombre_completo, c.id_cliente, e.nombre_completo ORDER BY v.fecha DESC';
     const result = await pool.query(query, params);
     res.json({ ventas: result.rows, total: result.rowCount });
   } catch (err) { next(err); }
@@ -117,7 +119,7 @@ export async function anularVenta(req, res, next) {
 export async function listarPedidos(req, res, next) {
   try {
     const result = await pool.query(`
-      SELECT p.id_pedidos, p.fecha, p.estado, p.total, p.direccion_entrega, p.created_at, p.comprobante_pago,
+      SELECT p.id_pedidos, p.fecha, p.estado, p.total, p.direccion_entrega, p.detalles_adicionales, p.created_at, p.comprobante_pago,
              c.nombre_completo AS cliente, c.email AS cliente_email, c.telefono AS cliente_telefono,
              e.nombre_completo AS empleado,
              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,

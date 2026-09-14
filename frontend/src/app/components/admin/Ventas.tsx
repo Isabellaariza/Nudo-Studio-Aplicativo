@@ -404,6 +404,16 @@ export function Ventas() {
               label="Estado actual"
               badge={(() => { const s = estadoStyle(selected.estado); return { bg: s.bg, color: s.color, text: selected.estado }; })()}
             />
+            {(selected as any).comprobante_pago && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, marginBottom: '8px' }}>COMPROBANTE DE PAGO</div>
+                {(selected as any).comprobante_pago.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={(selected as any).comprobante_pago} style={{ width: '100%', height: '380px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} title="Comprobante PDF" />
+                ) : (
+                  <img src={(selected as any).comprobante_pago} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} />
+                )}
+              </div>
+            )}
           </AdminDetailSection>
 
           {/* Acciones */}

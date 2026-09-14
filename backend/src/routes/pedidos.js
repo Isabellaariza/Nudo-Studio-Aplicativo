@@ -51,7 +51,7 @@ router.get('/:id', verificarToken, obtenerPedido);
 router.post('/', verificarToken, async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const { productos, total, direccion_entrega, comprobante_pago, id_cliente: id_cliente_body } = req.body;
+    const { productos, total, direccion_entrega, comprobante_pago, id_cliente: id_cliente_body, detalles_adicionales } = req.body;
     
     if (!productos || !Array.isArray(productos) || productos.length === 0) {
       return res.status(400).json({ mensaje: 'El carrito no puede estar vacío' });
@@ -85,9 +85,9 @@ router.post('/', verificarToken, async (req, res, next) => {
     await client.query('BEGIN');
 
     const pedidoResult = await client.query(
-      `INSERT INTO pedidos (id_cliente, total, estado, direccion_entrega, fecha, created_at, comprobante_pago)
-       VALUES ($1, $2, 'PAGO_POR_VERIFICAR', $3, CURRENT_DATE, NOW(), $4) RETURNING *`,
-      [id_cliente, total || 0, direccion_entrega || null, comprobante_pago || null]
+      `INSERT INTO pedidos (id_cliente, total, estado, direccion_entrega, detalles_adicionales, fecha, created_at, comprobante_pago)
+       VALUES ($1, $2, 'PAGO_POR_VERIFICAR', $3, $4, CURRENT_DATE, NOW(), $5) RETURNING *`,
+      [id_cliente, total || 0, direccion_entrega || null, detalles_adicionales || null, comprobante_pago || null]
     );
     
     const nuevoPedido = pedidoResult.rows[0];

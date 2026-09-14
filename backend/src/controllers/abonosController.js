@@ -75,6 +75,12 @@ export async function listarEstudiantesDisponibles(req, res, next) {
             AND a4.id_taller = t.id_talleres
             AND a4.estado = 'completo'
         )
+        AND NOT EXISTS (
+          SELECT 1 FROM abonos a5
+          WHERE a5.id_estudiante = e.id_estudiante
+            AND a5.id_taller = t.id_talleres
+            AND a5.estado = 'cancelado'
+        )
       ORDER BY e.id_estudiante, t.id_talleres
     `);
     res.json({ estudiantes: result.rows });

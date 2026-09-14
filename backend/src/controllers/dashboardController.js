@@ -17,13 +17,14 @@ export async function obtenerEstadisticas(req, res, next) {
       pool.query(`
         SELECT t.id_talleres, p.nombre_taller AS taller,
                t.hora, t.estado,
-               p.nombre_instructor AS instructor,
+               e.nombre_completo AS instructor,
                COUNT(m.id_matricula) AS inscritos
         FROM talleres t
         JOIN programacion_talleres p ON t.id_programacion = p.id_programacion_taller
+        LEFT JOIN empleados e ON t.id_empleado = e.id_empleado
         LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
         WHERE t.fecha = CURRENT_DATE AND t.estado = TRUE
-        GROUP BY t.id_talleres, p.nombre_taller, p.nombre_instructor, t.hora, t.estado
+        GROUP BY t.id_talleres, p.nombre_taller, e.nombre_completo, t.hora, t.estado
         ORDER BY t.hora
       `),
 

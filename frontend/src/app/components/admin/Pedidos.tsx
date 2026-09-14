@@ -226,6 +226,12 @@ function ViewModal({ p, onClose }: { p: any; onClose: () => void }) {
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{nomMatch[1].trim()}</div>
                     </div>
                   )}
+                  {p.detalles_adicionales && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(45,75,57,0.04)', borderRadius: '10px', gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, marginBottom: '3px' }}>DETALLES ADICIONALES</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{p.detalles_adicionales}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -58,7 +58,8 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
     phone: '',
     address: '',
     city: '',
-    department: ''
+    department: '',
+    detalles_adicionales: ''
   });
 
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
@@ -87,6 +88,7 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
         fullName: user.nombre || user.fullName || user.name || '',
         phone: (user.telefono || user.phone || '').replace(/\D/g, '').slice(0, 10),
         address: isColombianAddress(profileAddress) ? profileAddress : '',
+        detalles_adicionales: '',
       }));
       if (profileAddress && !isColombianAddress(profileAddress)) {
         toast.warning('Tu dirección de perfil no parece ser de Colombia. Por favor ingrésala manualmente.');
@@ -235,6 +237,7 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
         total: total,
         direccion_entrega: `${shippingAddress.address}, ${shippingAddress.city}, ${shippingAddress.department} (Colombia)`,
         descripcion: `Tel: ${shippingAddress.phone} | Nombre: ${shippingAddress.fullName}`,
+        detalles_adicionales: shippingAddress.detalles_adicionales || null,
         comprobante_pago: urlComprobante
       };
 
@@ -245,7 +248,7 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
       toast.success('¡Pedido realizado exitosamente!', { id: toastId });
       setCartItems([]);
       localStorage.removeItem('cart');
-      setShippingAddress({ fullName: '', phone: '', address: '', city: '', department: '' });
+      setShippingAddress({ fullName: '', phone: '', address: '', city: '', department: '', detalles_adicionales: '' });
       setPaymentProof(null);
       setIsAlternativeAddress(false);
 
@@ -274,7 +277,7 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
   const toggleAlternativeAddress = () => {
     if (!isAlternativeAddress) {
       setIsAlternativeAddress(true);
-      setShippingAddress({ fullName: '', phone: '', address: '', city: '', department: '' });
+      setShippingAddress({ fullName: '', phone: '', address: '', city: '', department: '', detalles_adicionales: '' });
       toast.info('Modo dirección alternativa activado.');
     } else {
       setIsAlternativeAddress(false);
@@ -283,7 +286,8 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
         phone: (user?.telefono || user?.phone || '').replace(/\D/g, '').slice(0, 10),
         address: isColombianAddress(user?.direccion || user?.address || '') ? (user?.direccion || user?.address || '') : '',
         city: '',
-        department: ''
+        department: '',
+        detalles_adicionales: ''
       });
       toast.info('Restaurando tus datos de perfil.');
     }
@@ -587,6 +591,16 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
                     onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
                   />
                   
+                  <input
+                    type="text"
+                    placeholder="Detalles adicionales (Ej: Torre 20, Apto 601, portería norte)"
+                    value={shippingAddress.detalles_adicionales}
+                    onChange={e => setShippingAddress({ ...shippingAddress, detalles_adicionales: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+                    style={{ border: '1px solid rgba(45,75,57,0.12)', color: '#2D4B39', backgroundColor: '#FAFAFA' }}
+                    onFocus={e => e.target.style.borderColor = '#B8860B'}
+                    onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
+                  />
                   <div className="grid grid-cols-2 gap-3">
                     {/* Input Ciudad */}
                     <div className="flex flex-col gap-1">

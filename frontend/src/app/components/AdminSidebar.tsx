@@ -418,11 +418,6 @@ export function AdminSidebar({ currentSection, onNavigate }: AdminSidebarProps) 
                               >
                                 <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: isSubActive ? '#B8860B' : '#9CA3AF', flexShrink: 0 }} />
                                 {subsection.label}
-                                {subsection.id === 'pedidos' && pedidosPendientes > 0 && (
-                                  <span style={{ marginLeft: 'auto', minWidth: '18px', height: '18px', borderRadius: '9px', background: '#EF4444', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                                    {pedidosPendientes}
-                                  </span>
-                                )}
                                 {subsection.id === 'stock' && stockCritico > 0 && (
                                   <span style={{ marginLeft: 'auto', minWidth: '18px', height: '18px', borderRadius: '9px', background: '#F59E0B', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
                                     {stockCritico}

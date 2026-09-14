@@ -71,7 +71,7 @@ export async function obtenerNotificaciones(req, res, next) {
         id: `stock_${i.id_insumos}`,
         tipo: 'stock',
         texto: `Stock bajo: "${i.nombre}" — ${i.stock} unidades (mínimo: ${i.stock_minimo})`,
-        fecha: new Date().toISOString(),
+        fecha: '2000-01-01T00:00:00.000Z',
         navegar: 'stock',
         color: '#EF4444',
       });

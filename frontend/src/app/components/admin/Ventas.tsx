@@ -140,6 +140,7 @@ export function Ventas() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [toCancel, setToCancel] = useState<Venta | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   const cargar = async () => {
     try {
@@ -187,6 +188,41 @@ export function Ventas() {
     } catch (err: any) { toast.error(err.message || 'Error al cancelar'); }
   };
 
+  const generarBlobPDF = (v: Venta): string => {
+    const doc = new jsPDF();
+    doc.setFillColor(45, 75, 57);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Comprobante de Venta', 14, 20);
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const col1 = 14, col2 = 110, lh = 10;
+    let y = 45;
+    const field = (label: string, value: string, x: number, yPos: number) => {
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 100, 100);
+      doc.text(label, x, yPos);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 30);
+      doc.text(value, x, yPos + 6);
+    };
+    field('N° Venta', v.numeroPedido, col1, y);
+    field('Fecha', v.fecha ? new Date(v.fecha).toLocaleDateString('es-CO') : '—', col2, y); y += lh * 2;
+    field('Cliente', v.cliente, col1, y);
+    field('Empleado', v.empleado, col2, y); y += lh * 2;
+    field('Producto', v.producto, col1, y); y += lh * 2;
+    field('Cantidad', String(v.cantidad), col1, y); y += lh * 2;
+    doc.setDrawColor(45, 75, 57);
+    doc.line(14, y, 196, y); y += 8;
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(45, 75, 57);
+    doc.text('TOTAL', col1, y);
+    doc.text(`$${v.total.toLocaleString()} COP`, col2, y); y += lh;
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(150, 150, 150);
+    doc.text(`Estado: ${v.estado}`, col1, y + 4);
+    return URL.createObjectURL(doc.output('blob'));
+  };
+
   const descargarPDF = (v: Venta) => {
     const doc = new jsPDF();
     doc.setFillColor(45, 75, 57);
@@ -227,6 +263,7 @@ export function Ventas() {
     doc.text(`Estado: ${v.estado}`, col1, y + 4);
     doc.save(`venta-${v.numeroPedido}.pdf`);
   };
+
 
   const filtered = ventas.filter(v =>
     v.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -361,7 +398,7 @@ export function Ventas() {
       {showViewModal && selected && (
         <AdminDetailModal
           isOpen={true}
-          onClose={() => setShowViewModal(false)}
+          onClose={() => { setShowViewModal(false); setPdfUrl(null); }}
           title={`Detalle — ${selected.numeroPedido}`}
           maxWidth="560px"
         >
@@ -417,6 +454,19 @@ export function Ventas() {
               </div>
             )}
           </AdminDetailSection>
+
+          {/* Ver PDF */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => setPdfUrl(pdfUrl ? null : generarBlobPDF(selected))}
+              style={{ padding: '10px 24px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.2)', background: 'rgba(45,75,57,0.06)', color: '#2D4B39', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileDown style={{ width: '15px', height: '15px' }} />
+              {pdfUrl ? 'Cerrar PDF' : 'Ver PDF'}
+            </motion.button>
+          </div>
+          {pdfUrl && (
+            <iframe src={pdfUrl} style={{ width: '100%', height: '420px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.1)' }} title="PDF Venta" />
+          )}
 
           {/* Acciones */}
           {(selected.estado === 'Pendiente') && (

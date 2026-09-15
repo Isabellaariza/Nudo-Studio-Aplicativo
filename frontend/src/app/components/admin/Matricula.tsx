@@ -52,7 +52,7 @@ function ModalAdd({ estudiantes, talleres, onSubmit, onClose }: {
         <select value={form.id_programacion} onChange={e => setForm(p => ({ ...p, id_programacion: e.target.value }))} style={iStyle}>
           <option value="">Seleccionar taller...</option>
           {talleres.filter((t: any) => t.estado).map((t: any) => (
-            <option key={t.id_talleres} value={t.id_programacion}>
+            <option key={t.id_talleres} value={t.id_talleres}>
               {t.nombre_taller}
               {t.fecha ? ` — ${new Date(t.fecha).toLocaleDateString('es-CO')}` : ''}
               {t.hora ? ` ${fmt12(t.hora)}` : ''}

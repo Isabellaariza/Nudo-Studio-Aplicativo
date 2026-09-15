@@ -63,7 +63,7 @@ router.post('/', verificarToken, async (req, res, next) => {
 
     // Obtener precio del taller
     const precio = await pool.query(
-      `SELECT t.precio FROM programacion_talleres pt JOIN talleres t ON t.id_programacion = pt.id_programacion_taller WHERE pt.id_programacion_taller = $1`,
+      `SELECT pt.precio FROM talleres t JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller WHERE t.id_talleres = $1`,
       [id_programacion]
     );
     const monto = precio.rows[0]?.precio || 0;

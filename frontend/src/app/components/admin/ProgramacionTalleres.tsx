@@ -568,7 +568,7 @@ export function ProgramacionTalleres() {
             </div>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => openModal('add')}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#2D4B39,#1a2f23)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
-              <Plus style={{ width: '16px', height: '16px' }} /> Nueva Programación
+              <Plus style={{ width: '16px', height: '16px' }} /> Crear Taller
             </motion.button>
           </div>
         </div>
@@ -653,7 +653,7 @@ export function ProgramacionTalleres() {
 
       {modalType && (
         <Modal isOpen={true} onClose={closeModal}
-          title={modalType === 'add' ? 'Nueva Programación de Taller' : modalType === 'edit' ? 'Editar Programación' : 'Detalle del Taller'}>
+          title={modalType === 'add' ? 'Crear Taller' : modalType === 'edit' ? 'Editar Taller' : 'Detalle del Taller'}>
           <ModalContent type={modalType} prog={selected} form={form}
             insumos={insumos} filasLocales={filasLocales} setFilasLocales={setFilasLocales}
             onChange={(f, v) => setForm(p => ({ ...p, [f]: v }))} onSubmit={handleSubmit} />

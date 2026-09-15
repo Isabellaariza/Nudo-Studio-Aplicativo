@@ -17,9 +17,10 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
   const [depositAmount, setDepositAmount] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const storageKey = user ? `talleres_inscritos_${user.id}` : null;
   const [inscritosIds, setInscritosIds] = useState<number[]>(() => {
-    if (!user) return [];
-    try { return JSON.parse(localStorage.getItem('talleres_inscritos') || '[]'); } catch { return []; }
+    if (!storageKey) return [];
+    try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; }
   });
 
   useEffect(() => { cargar(); }, []);
@@ -104,7 +105,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
       toast.success('¡Inscripción enviada! Verificaremos tu pago y te confirmaremos.');
       const nuevosInscritos = [...inscritosIds, selected.id_talleres];
       setInscritosIds(nuevosInscritos);
-      localStorage.setItem('talleres_inscritos', JSON.stringify(nuevosInscritos));
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(nuevosInscritos));
       setSelected(null);
       cargar();
     } catch (err: any) {

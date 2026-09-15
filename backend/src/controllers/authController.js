@@ -5,6 +5,10 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import pool from '../config/db.js';
 
+// Solo letras (incluyendo tildes y ñ), espacios y guiones
+const NOMBRE_RE = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s\-']+$/;
+const EMAIL_RE  = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -14,7 +18,7 @@ const transporter = nodemailer.createTransport({
 
 function generarToken(usuario) {
   return jwt.sign(
-    { id: usuario.id_usuarios, correo: usuario.email, rol: usuario.nombre_rol },
+    { id: usuario.id_usuarios, correo: usuario.email, rol: usuario.nombre_rol, pv: usuario.password_version || 0 },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
@@ -28,7 +32,7 @@ export async function login(req, res, next) {
   try {
     // Buscar usuario — el rol directo en usuarios tiene prioridad sobre clientes/empleados
     const result = await pool.query(
-      `SELECT u.id_usuarios, u.nombre, u.email, u.estado, u.contrasena_hash,
+      `SELECT u.id_usuarios, u.nombre, u.email, u.estado, u.contrasena_hash, u.password_version,
               COALESCE(ru.nombre, rc.nombre, re.nombre) AS nombre_rol,
               COALESCE(ru.id_rol, rc.id_rol, re.id_rol) AS id_rol,
               COALESCE(ru.permisos, rc.permisos, re.permisos, '{}') AS permisos
@@ -80,6 +84,10 @@ export async function registro(req, res, next) {
   const { nombre, correo, contrasena, telefono, direccion, tipo_documento, numero_documento } = req.body;
   if (!nombre || !correo || !contrasena || !telefono || !direccion || !numero_documento)
     return res.status(400).json({ mensaje: 'Todos los campos son obligatorios' });
+  if (!NOMBRE_RE.test(nombre.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (!EMAIL_RE.test(correo))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
 
   try {
     const existe = await pool.query(
@@ -100,9 +108,9 @@ export async function registro(req, res, next) {
     const hash = await bcrypt.hash(contrasena, 10);
 
     const nuevoUsuario = await pool.query(
-      `INSERT INTO usuarios (nombre, email, contrasena_hash, telefono, direccion, tipo_documento, numero_documento, estado, id_rol)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8) RETURNING id_usuarios, nombre, email`,
-      [nombre, correo.toLowerCase(), hash, telefono || null, direccion || null, tipo_documento || null, numero_documento || null, rolResult.rows[0].id_rol]
+      `INSERT INTO usuarios (nombre, email, contrasena_hash, telefono, direccion, tipo_documento, numero_documento, estado, id_rol, password_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8, 0) RETURNING id_usuarios, nombre, email`,
+      [nombre.trim(), correo.toLowerCase(), hash, telefono || null, direccion || null, tipo_documento || null, numero_documento || null, rolResult.rows[0].id_rol]
     );
 
     await pool.query(
@@ -144,6 +152,8 @@ export async function perfil(req, res, next) {
 
 export async function actualizarPerfil(req, res, next) {
   const { nombre, telefono, direccion, tipo_documento, numero_documento, password } = req.body;
+  if (nombre && !NOMBRE_RE.test(nombre.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
   try {
     const result = await pool.query(
       `UPDATE usuarios SET
@@ -168,7 +178,10 @@ export async function actualizarPerfil(req, res, next) {
       if (esMisma)
         return res.status(400).json({ mensaje: 'La nueva contrasena no puede ser igual a la actual' });
       const hash = await bcrypt.hash(password, 10);
-      await pool.query('UPDATE usuarios SET contrasena_hash = $1 WHERE id_usuarios = $2', [hash, req.usuario.id]);
+      await pool.query(
+        'UPDATE usuarios SET contrasena_hash = $1, password_version = COALESCE(password_version, 0) + 1 WHERE id_usuarios = $2',
+        [hash, req.usuario.id]
+      );
     }
     res.json({ mensaje: 'Perfil actualizado', usuario: result.rows[0] });
   } catch (err) { next(err); }
@@ -192,7 +205,7 @@ export async function cambiarContrasena(req, res, next) {
       return res.status(401).json({ mensaje: 'La contrasena actual es incorrecta' });
     const nuevoHash = await bcrypt.hash(contrasenaNueva, 10);
     await pool.query(
-      'UPDATE usuarios SET contrasena_hash = $1 WHERE id_usuarios = $2',
+      'UPDATE usuarios SET contrasena_hash = $1, password_version = COALESCE(password_version, 0) + 1 WHERE id_usuarios = $2',
       [nuevoHash, req.usuario.id]
     );
     res.json({ mensaje: 'Contrasena actualizada exitosamente' });
@@ -251,7 +264,7 @@ export async function resetearContrasena(req, res, next) {
 
     const hash = await bcrypt.hash(contrasenaNueva, 10);
     await pool.query(
-      'UPDATE usuarios SET contrasena_hash = $1, reset_token = NULL, reset_token_expira = NULL WHERE id_usuarios = $2',
+      'UPDATE usuarios SET contrasena_hash = $1, reset_token = NULL, reset_token_expira = NULL, password_version = COALESCE(password_version, 0) + 1 WHERE id_usuarios = $2',
       [hash, result.rows[0].id_usuarios]
     );
 

@@ -1,5 +1,8 @@
 import pool from '../config/db.js';
 
+const NOMBRE_RE = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s\-']+$/;
+const EMAIL_RE  = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
 // ══════════════════════════════════════════════════════════════
 //  CLIENTES
 // ══════════════════════════════════════════════════════════════
@@ -54,6 +57,10 @@ export async function obtenerCliente(req, res, next) {
 export async function crearCliente(req, res, next) {
   const { nombre_completo, email, telefono, direccion } = req.body;
   if (!nombre_completo) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
+  if (!NOMBRE_RE.test(nombre_completo.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (email && !EMAIL_RE.test(email))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
   try {
     const rolResult = await pool.query(`SELECT id_rol FROM roles WHERE nombre = 'cliente' LIMIT 1`);
     const id_rol = rolResult.rows[0]?.id_rol || null;
@@ -68,6 +75,10 @@ export async function crearCliente(req, res, next) {
 
 export async function actualizarCliente(req, res, next) {
   const { nombre_completo, email, telefono, direccion, estado } = req.body;
+  if (nombre_completo && !NOMBRE_RE.test(nombre_completo.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (email && !EMAIL_RE.test(email))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
   try {
     const result = await pool.query(
       `UPDATE clientes SET
@@ -139,6 +150,10 @@ export async function crearEmpleado(req, res, next) {
           fecha_inicio, tipo_sangre, eps, contacto_emergencia, alergias,
           email, telefono, direccion, tipo_documento, numero_documento, id_rol } = req.body;
   if (!nombre_completo) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
+  if (!NOMBRE_RE.test(nombre_completo.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (email && !EMAIL_RE.test(email))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
   try {
     const result = await pool.query(
       `INSERT INTO empleados (nombre_completo, cargo, departamento, salario_mensual,
@@ -158,6 +173,10 @@ export async function actualizarEmpleado(req, res, next) {
   const { nombre_completo, cargo, departamento, salario_mensual, tipo_contrato,
           fecha_inicio, tipo_sangre, eps, contacto_emergencia, alergias,
           email, telefono, direccion, tipo_documento, numero_documento, id_rol } = req.body;
+  if (nombre_completo && !NOMBRE_RE.test(nombre_completo.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (email && !EMAIL_RE.test(email))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
   try {
     const result = await pool.query(
       `UPDATE empleados SET

@@ -8,25 +8,19 @@
  */
 
 // ── Nombre ────────────────────────────────────────────────────────────────────
-/** Devuelve true si el carácter es válido para un nombre (letra, tilde, ñ, espacio, guion) */
 const NOMBRE_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ\s\-']+$/;
 
 /**
- * Filtra el input de nombre: permite letras, tildes, ñ, espacios y guiones.
- * Devuelve `{ value, error }`. Si hay caracteres inválidos devuelve el value sin ellos
- * y un mensaje de error; si es válido devuelve el value limpio y error vacío.
+ * Filtra el input de nombre: solo permite letras (con tildes/ñ), espacios y guiones.
+ * Elimina números y caracteres especiales en tiempo real.
  */
 export function filterNombre(raw: string): { value: string; error: string } {
   if (raw === '') return { value: '', error: '' };
-  // Quitar caracteres inválidos
-  const cleaned = raw.replace(/[0-9]/g, '');
+  const cleaned = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ\s\-']/g, '');
   const hasInvalid = cleaned !== raw;
-  if (!NOMBRE_REGEX.test(cleaned) && cleaned !== '') {
-    return { value: cleaned, error: 'El nombre solo puede contener letras' };
-  }
   return {
     value: cleaned,
-    error: hasInvalid ? 'El nombre no puede contener números' : '',
+    error: hasInvalid ? 'El nombre solo puede contener letras, espacios y guiones' : '',
   };
 }
 

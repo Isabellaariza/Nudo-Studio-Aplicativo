@@ -13,7 +13,7 @@ export async function listarTalleres(req, res, next) {
       FROM talleres t
       JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
       LEFT JOIN empleados e ON t.id_empleado = e.id_empleado
-      LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
+      LEFT JOIN matricula m ON m.id_taller = t.id_talleres
       LEFT JOIN materiales mat ON mat.id_programacion_taller = pt.id_programacion_taller AND mat.estado = TRUE
       WHERE 1=1
     `;
@@ -92,7 +92,7 @@ export async function actualizarTaller(req, res, next) {
 export async function eliminarTaller(req, res, next) {
   try {
     const matriculas = await pool.query(
-      `SELECT id_matricula FROM matricula WHERE id_programacion = $1 LIMIT 1`, [req.params.id]
+      `SELECT id_matricula FROM matricula WHERE id_taller = $1 LIMIT 1`, [req.params.id]
     );
     if (matriculas.rows.length) return res.status(403).json({ mensaje: 'No se puede eliminar: tiene matrículas asociadas' });
     const result = await pool.query(`DELETE FROM talleres WHERE id_talleres = $1 RETURNING id_talleres`, [req.params.id]);
@@ -148,12 +148,12 @@ export async function completarTaller(req, res, next) {
       await client.query(`
         UPDATE usuarios u SET id_rol = $1
         FROM estudiantes est JOIN matricula m ON m.id_estudiante = est.id_estudiante
-        WHERE m.id_programacion = $2 AND est.id_usuarios IS NOT NULL AND u.id_usuarios = est.id_usuarios
+        WHERE m.id_taller = $2 AND est.id_usuarios IS NOT NULL AND u.id_usuarios = est.id_usuarios
       `, [id_rol_cliente, id]);
       await client.query(`
         UPDATE clientes c SET id_rol = $1
         FROM estudiantes est JOIN matricula m ON m.id_estudiante = est.id_estudiante
-        WHERE m.id_programacion = $2 AND est.id_usuarios IS NOT NULL AND c.id_usuarios = est.id_usuarios
+        WHERE m.id_taller = $2 AND est.id_usuarios IS NOT NULL AND c.id_usuarios = est.id_usuarios
       `, [id_rol_cliente, id]);
     }
 

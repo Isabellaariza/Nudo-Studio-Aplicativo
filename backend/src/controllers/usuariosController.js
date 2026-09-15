@@ -1,6 +1,9 @@
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
+const NOMBRE_RE = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s\-']+$/;
+const EMAIL_RE  = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
 export async function listar(req, res, next) {
   try {
     const result = await pool.query(`
@@ -18,6 +21,10 @@ export async function listar(req, res, next) {
 export async function crear(req, res, next) {
   const { nombre, correo, contrasena, tipo_documento, numero_documento, telefono, direccion, id_rol } = req.body;
   if (!nombre || !correo || !contrasena) return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+  if (!NOMBRE_RE.test(nombre.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
+  if (!EMAIL_RE.test(correo))
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
   try {
     const existe = await pool.query('SELECT id_usuarios FROM usuarios WHERE email = $1', [correo.toLowerCase()]);
     if (existe.rows.length > 0) return res.status(409).json({ mensaje: 'El correo ya está registrado' });
@@ -50,6 +57,8 @@ export async function crear(req, res, next) {
 
 export async function actualizar(req, res, next) {
   const { nombre, tipo_documento, numero_documento, telefono, direccion, estado, id_rol } = req.body;
+  if (nombre && !NOMBRE_RE.test(nombre.trim()))
+    return res.status(400).json({ mensaje: 'El nombre solo puede contener letras, espacios y guiones' });
   try {
     // id_rol puede venir explícitamente como null para quitarlo, por eso no usamos COALESCE
     const fields = [

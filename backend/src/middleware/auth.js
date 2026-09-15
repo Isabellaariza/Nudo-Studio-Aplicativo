@@ -1,11 +1,8 @@
 // src/middleware/auth.js
 import jwt from 'jsonwebtoken';
+import pool from '../config/db.js';
 
-/**
- * Verifica que el token JWT sea válido.
- * Adjunta req.usuario con { id, correo, rol } para uso en controllers.
- */
-export function verificarToken(req, res, next) {
+export async function verificarToken(req, res, next) {
   const authHeader = req.headers['authorization'];
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,7 +13,19 @@ export function verificarToken(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.usuario = payload; // { id, correo, rol, iat, exp }
+    req.usuario = payload; // { id, correo, rol, pv, iat, exp }
+
+    // Verificar que la contraseña no haya cambiado desde que se emitió el token
+    const result = await pool.query(
+      'SELECT password_version FROM usuarios WHERE id_usuarios = $1 AND estado = TRUE',
+      [payload.id]
+    );
+    if (!result.rows.length) return res.status(401).json({ mensaje: 'Usuario no encontrado o inactivo' });
+    const pvActual = result.rows[0].password_version || 0;
+    if ((payload.pv || 0) < pvActual) {
+      return res.status(401).json({ mensaje: 'Sesión expirada: la contraseña fue cambiada en otro dispositivo' });
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({ mensaje: 'Token inválido o expirado' });

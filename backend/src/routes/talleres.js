@@ -24,7 +24,7 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
               COUNT(m.id_matricula) AS inscritos
        FROM talleres t
        JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
-       LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
+       LEFT JOIN matricula m ON m.id_taller = t.id_talleres
        WHERE t.id_talleres = $1 AND t.estado = TRUE
        GROUP BY t.id_talleres, pt.nombre_taller, pt.precio`, [id_taller]
     );
@@ -47,13 +47,13 @@ router.post('/:id/inscribirse', verificarToken, async (req, res, next) => {
     }
 
     const existe = await pool.query(
-      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_programacion = $2`,
+      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_taller = $2`,
       [id_estudiante, id_taller]
     );
     if (existe.rows.length) return res.status(409).json({ mensaje: 'Ya estás inscrito en este taller' });
 
     const result = await pool.query(
-      `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
+      `INSERT INTO matricula (id_estudiante, id_taller, fecha_matricula, estado)
        VALUES ($1, $2, CURRENT_DATE, 'pendiente_pago') RETURNING *`,
       [id_estudiante, id_taller]
     );

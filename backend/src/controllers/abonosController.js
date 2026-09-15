@@ -60,7 +60,7 @@ export async function listarEstudiantesDisponibles(req, res, next) {
         ) AS saldo_pendiente
       FROM estudiantes e
       JOIN matricula m ON m.id_estudiante = e.id_estudiante
-      JOIN talleres t ON t.id_talleres = m.id_programacion AND t.estado = TRUE
+      JOIN talleres t ON t.id_talleres = m.id_taller AND t.estado = TRUE
       JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       WHERE m.estado IN ('pendiente_pago','activa')
         AND (
@@ -299,7 +299,7 @@ export async function aprobarAbono(req, res, next) {
 
     // Verificar que no esté ya matriculado (evitar duplicados)
     const yaMatriculado = await client.query(
-      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_programacion = $2`,
+      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_taller = $2`,
       [id_estudiante, abono.id_taller]
     );
 
@@ -307,10 +307,10 @@ export async function aprobarAbono(req, res, next) {
     if (yaMatriculado.rows.length) {
       id_matricula = yaMatriculado.rows[0].id_matricula;
     } else {
-      // Crear matrícula: id_programacion apunta a talleres.id_talleres (C2)
+      // Crear matrícula: id_taller apunta a talleres.id_talleres
       const estadoMatricula = tieneSaldo ? 'pendiente_pago' : 'activa';
       const matriculaRes = await client.query(
-        `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
+        `INSERT INTO matricula (id_estudiante, id_taller, fecha_matricula, estado)
          VALUES ($1, $2, CURRENT_DATE, $3) RETURNING id_matricula`,
         [id_estudiante, abono.id_taller, estadoMatricula]
       );
@@ -436,7 +436,7 @@ export async function crearAbonoTaller(req, res, next) {
               COUNT(m.id_matricula) AS inscritos
        FROM talleres t
        JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
-       LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
+       LEFT JOIN matricula m ON m.id_taller = t.id_talleres
        WHERE t.id_talleres = $1 AND t.estado = TRUE
        GROUP BY t.id_talleres, pt.nombre_taller, pt.precio`, [id_taller]
     );

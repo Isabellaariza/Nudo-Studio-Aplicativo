@@ -33,7 +33,7 @@ export async function obtenerNotificaciones(req, res, next) {
                pt.nombre_taller AS taller
         FROM matricula m
         JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-        LEFT JOIN programacion_talleres pt ON m.id_programacion = pt.id_programacion_taller
+        LEFT JOIN programacion_talleres pt ON m.id_taller = pt.id_programacion_taller
         WHERE m.fecha_matricula >= NOW() - INTERVAL '7 days'
         ORDER BY m.fecha_matricula DESC
       `),

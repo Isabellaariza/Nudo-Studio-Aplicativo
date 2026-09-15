@@ -22,7 +22,7 @@ export async function obtenerEstadisticas(req, res, next) {
         FROM talleres t
         JOIN programacion_talleres p ON t.id_programacion = p.id_programacion_taller
         LEFT JOIN empleados e ON t.id_empleado = e.id_empleado
-        LEFT JOIN matricula m ON m.id_programacion = t.id_talleres
+        LEFT JOIN matricula m ON m.id_taller = t.id_talleres
         WHERE t.fecha = CURRENT_DATE AND t.estado = TRUE
         GROUP BY t.id_talleres, p.nombre_taller, e.nombre_completo, t.hora, t.estado
         ORDER BY t.hora

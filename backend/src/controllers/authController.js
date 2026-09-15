@@ -174,6 +174,10 @@ export async function actualizarPerfil(req, res, next) {
     }
     if (password) {
       const current = await pool.query('SELECT contrasena_hash FROM usuarios WHERE id_usuarios = $1', [req.usuario.id]);
+      if (req.body.contrasenaActual) {
+        const esValida = await bcrypt.compare(req.body.contrasenaActual, current.rows[0].contrasena_hash);
+        if (!esValida) return res.status(401).json({ mensaje: 'La contraseña actual es incorrecta' });
+      }
       const esMisma = await bcrypt.compare(password, current.rows[0].contrasena_hash);
       if (esMisma)
         return res.status(400).json({ mensaje: 'La nueva contrasena no puede ser igual a la actual' });

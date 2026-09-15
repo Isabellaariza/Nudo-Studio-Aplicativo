@@ -21,14 +21,42 @@ interface CartItem {
   imageUrl: string;
 }
 
-const DEPARTAMENTOS_COLOMBIA = [
-  'amazonas', 'antioquia', 'arauca', 'atlantico', 'atlántico', 'bolivar', 'bolívar', 
-  'boyaca', 'boyacá', 'caldas', 'caqueta', 'caquetá', 'casanare', 'cauca', 'cesar', 
-  'choco', 'chocó', 'cordoba', 'còrdoba', 'cundinamarca', 'guainia', 'guainía', 
-  'guaviare', 'huila', 'la guajira', 'magdalena', 'meta', 'nariño', 'norte de santander', 
-  'putumayo', 'quindio', 'quindío', 'risaralda', 'san andres', 'san andrés', 'santander', 
-  'sucre', 'tolima', 'valle del cauca', 'vaupes', 'vaupés', 'vichada', 'bogota', 'bogotá'
-];
+const COLOMBIA_DATA: Record<string, string[]> = {
+  'Amazonas': ['Leticia', 'Puerto Nariño'],
+  'Antioquia': ['Medellín', 'Bello', 'Itagüí', 'Envigado', 'Apartadó', 'Turbo', 'Rionegro', 'Sabaneta', 'Copacabana', 'La Estrella', 'Caldas', 'Barbosa', 'Girardota', 'Caucasia'],
+  'Arauca': ['Arauca', 'Saravena', 'Tame'],
+  'Atlántico': ['Barranquilla', 'Soledad', 'Malambo', 'Sabanalarga', 'Baranoa'],
+  'Bolívar': ['Cartagena', 'Magangué', 'El Carmen de Bolívar'],
+  'Boyacá': ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá'],
+  'Caldas': ['Manizales', 'La Dorada', 'Chinchiná'],
+  'Caquetá': ['Florencia', 'San Vicente del Caguán'],
+  'Casanare': ['Yopal', 'Aguazul', 'Villanueva'],
+  'Cauca': ['Popayán', 'Santander de Quilichao', 'Puerto Tejada'],
+  'Cesar': ['Valledupar', 'Aguachica', 'Codazzi'],
+  'Chocó': ['Quibdó', 'Istmina', 'Tumaco'],
+  'Córdoba': ['Montería', 'Lorica', 'Cereté', 'Sahagún'],
+  'Cundinamarca': ['Bogotá D.C.', 'Soacha', 'Facatativá', 'Zipaquirá', 'Chía', 'Mosquera', 'Madrid', 'Fusagasugá', 'Girardot', 'Cajicá'],
+  'Guainía': ['Inírida'],
+  'Guaviare': ['San José del Guaviare'],
+  'Huila': ['Neiva', 'Pitalito', 'Garzón'],
+  'La Guajira': ['Riohacha', 'Maicao', 'Uribia'],
+  'Magdalena': ['Santa Marta', 'Ciénaga', 'Fundación'],
+  'Meta': ['Villavicencio', 'Acacías', 'Granada'],
+  'Nariño': ['Pasto', 'Tumaco', 'Ipiales'],
+  'Norte de Santander': ['Cúcuta', 'Ocaña', 'Pamplona', 'Villa del Rosario'],
+  'Putumayo': ['Mocoa', 'Puerto Asís'],
+  'Quindío': ['Armenia', 'Calarcá', 'Montenegro'],
+  'Risaralda': ['Pereira', 'Dosquebradas', 'Santa Rosa de Cabal'],
+  'San Andrés': ['San Andrés', 'Providencia'],
+  'Santander': ['Bucaramanga', 'Floridablanca', 'Girón', 'Piedecuesta', 'Barrancabermeja'],
+  'Sucre': ['Sincelejo', 'Corozal', 'Sampués'],
+  'Tolima': ['Ibagué', 'Espinal', 'Melgar', 'Honda'],
+  'Valle del Cauca': ['Cali', 'Buenaventura', 'Palmira', 'Tuluá', 'Buga', 'Cartago', 'Jamundí', 'Yumbo'],
+  'Vaupés': ['Mitú'],
+  'Vichada': ['Puerto Carreño'],
+};
+
+const DEPARTAMENTOS = Object.keys(COLOMBIA_DATA).sort();
 
 async function subirComprobante(file: File): Promise<string> {
   const formData = new FormData();
@@ -75,7 +103,7 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
   const isColombianAddress = (addr: string) => {
     if (!addr) return false;
     const lower = addr.toLowerCase();
-    return DEPARTAMENTOS_COLOMBIA.some(d => lower.includes(d)) ||
+    return DEPARTAMENTOS.some(d => lower.includes(d.toLowerCase())) ||
       /calle|carrera|cra|cl|av\.|avenida|diagonal|transversal|manzana|barrio/i.test(addr);
   };
 
@@ -123,12 +151,8 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
   }, [cartItems]);
 
   // --- VALIDACIONES DE COLOMBIA ---
-  const isDepartmentInvalid = shippingAddress.department.trim().length > 2 && 
-    !DEPARTAMENTOS_COLOMBIA.includes(shippingAddress.department.toLowerCase().trim());
-
-  const ciudadesBloqueadas = ['miami', 'madrid', 'mexico', 'méxico', 'lima', 'buenos aires', 'santiago', 'caracas', 'quito', 'orlando', 'new york', 'usa', 'españa'];
-  const isCityInvalid = shippingAddress.city.trim().length > 1 && 
-    ciudadesBloqueadas.some(blocked => shippingAddress.city.toLowerCase().trim().includes(blocked));
+  const isDepartmentInvalid = false;
+  const isCityInvalid = false;
 
   const updateQuantity = (id: string, delta: number) => {
     setCartItems(items => items.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
@@ -602,42 +626,32 @@ export function CartPage({ user, onNavigate, onCartUpdate }: CartPageProps) {
                     onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
                   />
                   <div className="grid grid-cols-2 gap-3">
-                    {/* Input Ciudad */}
                     <div className="flex flex-col gap-1">
-                      <input
-                        type="text"
-                        placeholder="Ciudad (Colombia)"
+                      <select
+                        value={shippingAddress.department}
+                        onChange={e => setShippingAddress({ ...shippingAddress, department: e.target.value, city: '' })}
+                        className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+                        style={{ border: '1px solid rgba(45,75,57,0.12)', color: shippingAddress.department ? '#2D4B39' : '#9CA3AF', backgroundColor: '#FAFAFA' }}
+                        onFocus={e => e.target.style.borderColor = '#B8860B'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
+                      >
+                        <option value="">Departamento</option>
+                        {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <select
                         value={shippingAddress.city}
                         onChange={e => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                        disabled={!shippingAddress.department}
                         className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                        style={{ 
-                          border: isCityInvalid ? '1.5px solid #EF4444' : '1px solid rgba(45,75,57,0.12)', 
-                          color: '#2D4B39', 
-                          backgroundColor: isCityInvalid ? 'rgba(239,68,68,0.02)' : '#FAFAFA' 
-                        }}
-                        onFocus={e => { if(!isCityInvalid) e.target.style.borderColor = '#B8860B' }}
-                        onBlur={e => { if(!isCityInvalid) e.target.style.borderColor = 'rgba(45,75,57,0.12)' }}
-                      />
-                      {isCityInvalid && <span className="text-[10px] text-red-500 px-1">Solo Colombia</span>}
-                    </div>
-
-                    {/* Input Departamento */}
-                    <div className="flex flex-col gap-1">
-                      <input
-                        type="text"
-                        placeholder="Departamento"
-                        value={shippingAddress.department}
-                        onChange={e => setShippingAddress({ ...shippingAddress, department: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                        style={{ 
-                          border: isDepartmentInvalid ? '1.5px solid #EF4444' : '1px solid rgba(45,75,57,0.12)', 
-                          color: '#2D4B39', 
-                          backgroundColor: isDepartmentInvalid ? 'rgba(239,68,68,0.02)' : '#FAFAFA' 
-                        }}
-                        onFocus={e => { if(!isDepartmentInvalid) e.target.style.borderColor = '#B8860B' }}
-                        onBlur={e => { if(!isDepartmentInvalid) e.target.style.borderColor = 'rgba(45,75,57,0.12)' }}
-                      />
-                      {isDepartmentInvalid && <span className="text-[10px] text-red-500 px-1">No encontrado</span>}
+                        style={{ border: '1px solid rgba(45,75,57,0.12)', color: shippingAddress.city ? '#2D4B39' : '#9CA3AF', backgroundColor: shippingAddress.department ? '#FAFAFA' : 'rgba(45,75,57,0.03)', cursor: shippingAddress.department ? 'pointer' : 'not-allowed' }}
+                        onFocus={e => e.target.style.borderColor = '#B8860B'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
+                      >
+                        <option value="">Ciudad</option>
+                        {(COLOMBIA_DATA[shippingAddress.department] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
                     </div>
                   </div>
                 </div>

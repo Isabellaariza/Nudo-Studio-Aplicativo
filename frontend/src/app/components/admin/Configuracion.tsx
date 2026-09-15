@@ -188,33 +188,24 @@ export function GestionConfiguracion() {
                   </div>
                 </td>
                 <td style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                    <button onClick={() => { setSelectedItem(rol); setModalType('view'); setIsModalOpen(true); }} style={{ color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer' }}><Info size={16} /></button>
-                    <button 
-                      onClick={() => { 
-                        if ((rol.nombre || '').toLowerCase() === 'administrador') {
-                          toast.error('El rol Administrador no puede ser modificado.');
-                          return;
-                        }
-                        setSelectedItem(rol); setModalType('edit'); setIsModalOpen(true); 
-                      }} 
-                      style={{ color: '#B8860B', background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button 
-                      onClick={() => { 
-                        if ((rol.nombre || '').toLowerCase() === 'administrador') {
-                          setShowRestrictedModal(true);
-                        } else {
-                          setSelectedItem(rol); setShowDeleteModal(true); 
-                        }
-                      }} 
-                      style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {(() => {
+                    const esAdmin = (rol.nombre || '').toLowerCase() === 'administrador';
+                    return (
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                        <button onClick={() => { setSelectedItem(rol); setModalType('view'); setIsModalOpen(true); }} style={{ color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer' }}><Info size={16} /></button>
+                        <button
+                          onClick={() => { if (!esAdmin) { setSelectedItem(rol); setModalType('edit'); setIsModalOpen(true); } }}
+                          disabled={esAdmin}
+                          style={{ color: esAdmin ? '#D1D5DB' : '#B8860B', background: 'none', border: 'none', cursor: esAdmin ? 'not-allowed' : 'pointer', opacity: esAdmin ? 0.5 : 1 }}
+                        ><Edit size={16} /></button>
+                        <button
+                          onClick={() => { if (!esAdmin) { setSelectedItem(rol); setShowDeleteModal(true); } }}
+                          disabled={esAdmin}
+                          style={{ color: esAdmin ? '#D1D5DB' : '#EF4444', background: 'none', border: 'none', cursor: esAdmin ? 'not-allowed' : 'pointer', opacity: esAdmin ? 0.5 : 1 }}
+                        ><Trash2 size={16} /></button>
+                      </div>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

@@ -48,6 +48,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const [formData, setFormData] = useState({ nombre: '', telefono: '', direccion: '', tipo_documento: 'Cédula de Ciudadanía', numero_documento: '' });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [docError, setDocError] = useState('');
@@ -63,6 +64,11 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
     cargarPerfil();
     cargarPedidos();
     cargarMatriculas();
+    const interval = setInterval(() => {
+      cargarPedidos();
+      cargarMatriculas();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const cargarPedidos = async () => { try { const d = await pedidosAPI.getMisPedidos(); setPedidos(d.pedidos || []); } catch {} };
@@ -95,6 +101,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
   const handleSave = async () => {
     if (newPassword) {
+      if (!currentPassword) { toast.error('Debes ingresar tu contraseña actual'); return; }
       const rules = passwordRules(newPassword);
       if (!rules.length || !rules.number || !rules.upper || !rules.special) {
         toast.error('La contrasena no cumple los requisitos de seguridad'); return;
@@ -110,11 +117,11 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
     if (addrErr) { toast.error(addrErr); return; }
     try {
       const payload: any = { ...formData };
-      if (newPassword) payload.password = newPassword;
+      if (newPassword) { payload.password = newPassword; payload.contrasenaActual = currentPassword; }
       const data = await auth.updateProfile(payload);
       setProfileData(data.usuario);
       setIsEditing(false);
-      setNewPassword(''); setConfirmPassword('');
+      setNewPassword(''); setConfirmPassword(''); setCurrentPassword('');
       toast.success('Perfil actualizado correctamente');
     } catch (err: any) { toast.error(err.message || 'Error al guardar'); }
   };
@@ -407,6 +414,21 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
               <div className="mt-5 pt-5" style={{ borderTop: '1px solid rgba(45,75,57,0.08)' }}>
                 <p className="text-xs font-semibold mb-3" style={{ color: 'rgba(45,75,57,0.5)' }}>CAMBIAR CONTRASEÑA <span className="font-normal">(opcional)</span></p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: 'rgba(45,75,57,0.6)' }}>
+                      <Lock className="w-3.5 h-3.5" />Contraseña actual
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Ingresa tu contraseña actual"
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+                      style={{ border: '1px solid rgba(45,75,57,0.12)', color: '#2D4B39', backgroundColor: '#FAFAFA' }}
+                      onFocus={e => e.target.style.borderColor = '#B8860B'}
+                      onBlur={e => e.target.style.borderColor = 'rgba(45,75,57,0.12)'}
+                    />
+                  </div>
                   <div>
                     <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: 'rgba(45,75,57,0.6)' }}>
                       <Lock className="w-3.5 h-3.5" />Nueva contraseña

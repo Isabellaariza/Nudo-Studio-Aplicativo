@@ -6,6 +6,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: { rejectUnauthorized: false },
+  pool: true,
+  maxConnections: 5,
+  rateDelta: 1000,
+  rateLimit: 5,
 });
 
 // Helper: convierte hora HH:MM o HH:MM:SS a formato 12h AM/PM

@@ -19,7 +19,7 @@ router.get('/mis-matriculas', verificarToken, async (req, res, next) => {
              t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN talleres t ON t.id_talleres = m.id_taller
       LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       LEFT JOIN empleados emp ON emp.id_empleado = t.id_empleado
       WHERE e.id_usuarios = $1
@@ -32,7 +32,7 @@ router.get('/mis-matriculas', verificarToken, async (req, res, next) => {
 router.get('/', verificarToken, async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT m.id_matricula, m.id_estudiante, m.id_programacion,
+      SELECT m.id_matricula, m.id_estudiante, m.id_taller,
              m.fecha_matricula, m.estado,
              e.nombre_completo AS estudiante, e.email, e.telefono,
              e.monto_total, e.monto_pagado,
@@ -41,7 +41,7 @@ router.get('/', verificarToken, async (req, res, next) => {
              t.fecha AS fecha_taller, t.hora, t.lugar
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN talleres t ON t.id_talleres = m.id_taller
       LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       LEFT JOIN empleados emp ON emp.id_empleado = t.id_empleado
       ORDER BY m.id_matricula DESC
@@ -56,7 +56,7 @@ router.post('/', verificarToken, async (req, res, next) => {
   try {
     // Verificar que no esté ya matriculado
     const existe = await pool.query(
-      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_programacion = $2`,
+      `SELECT id_matricula FROM matricula WHERE id_estudiante = $1 AND id_taller = $2`,
       [id_estudiante, id_programacion]
     );
     if (existe.rows.length) return res.status(409).json({ mensaje: 'El estudiante ya está matriculado en esta programación' });
@@ -72,7 +72,7 @@ router.post('/', verificarToken, async (req, res, next) => {
     const monto = precio.rows[0]?.precio || 0;
 
     const result = await pool.query(
-      `INSERT INTO matricula (id_estudiante, id_programacion, fecha_matricula, estado)
+      `INSERT INTO matricula (id_estudiante, id_taller, fecha_matricula, estado)
        VALUES ($1, $2, CURRENT_DATE, 'pendiente_pago') RETURNING *`,
       [id_estudiante, id_programacion]
     );
@@ -100,7 +100,7 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), as
              pt.nombre_taller, pt.precio,             t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
-      LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
+      LEFT JOIN talleres t ON t.id_talleres = m.id_taller
       LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
       WHERE m.id_matricula = $1`, [req.params.id]
     );

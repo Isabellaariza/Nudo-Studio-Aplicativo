@@ -14,12 +14,14 @@ router.get('/mis-matriculas', verificarToken, async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT m.id_matricula, m.estado, m.fecha_matricula,
-             pt.nombre_taller AS taller, pt.precio, pt.nombre_instructor AS instructor,
+             pt.nombre_taller AS taller, pt.precio,
+             emp.nombre_completo AS instructor,
              t.fecha AS fecha_taller, t.hora
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
       LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
       LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
+      LEFT JOIN empleados emp ON emp.id_empleado = t.id_empleado
       WHERE e.id_usuarios = $1
       ORDER BY m.id_matricula DESC
     `, [req.usuario.id]);
@@ -35,12 +37,13 @@ router.get('/', verificarToken, async (req, res, next) => {
              e.nombre_completo AS estudiante, e.email, e.telefono,
              e.monto_total, e.monto_pagado,
              pt.nombre_taller AS taller, pt.precio,
-             pt.nombre_instructor AS instructor,
+             emp.nombre_completo AS instructor,
              t.fecha AS fecha_taller, t.hora, t.lugar
       FROM matricula m
       JOIN estudiantes e ON m.id_estudiante = e.id_estudiante
       LEFT JOIN talleres t ON t.id_talleres = m.id_programacion
       LEFT JOIN programacion_talleres pt ON pt.id_programacion_taller = t.id_programacion
+      LEFT JOIN empleados emp ON emp.id_empleado = t.id_empleado
       ORDER BY m.id_matricula DESC
     `);
     res.json({ matriculas: result.rows, total: result.rowCount });

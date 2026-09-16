@@ -752,6 +752,16 @@ export const abonosAPI = {
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
     return res.json();
   },
+  marcarExceso: async (id: number, data: { monto_exceso?: number; nota?: string; comprobante_devolucion?: string }) => {
+    const res = await fetchWithAuth(`${API_URL}/abonos/${id}/exceso`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  registrarDevolucion: async (id: number, data: { comprobante_devolucion: string; nota?: string; monto_exceso?: number }) => {
+    const res = await fetchWithAuth(`${API_URL}/abonos/${id}/devolucion`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
   resubirComprobante: async (id: number, file: File) => {
     const fd = new FormData();
     fd.append('file', file);

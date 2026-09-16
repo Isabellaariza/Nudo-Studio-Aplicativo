@@ -500,7 +500,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
             // Contador de acciones pendientes por tab
             const count = tab === 'orders'
               ? pedidosRechazados.length
-              : misAbonos.filter((a: any) => a.estado === 'por_verificar' || (a.estado === 'aprobado' && Number(a.saldo_pendiente) > 0) || a.estado === 'rechazado').length;
+              : misAbonos.filter((a: any) => a.estado === 'por_verificar' || (a.estado === 'aprobado' && Number(a.saldo_pendiente) > 0) || a.estado === 'rechazado' || a.estado === 'exceso').length;
             return (
               <button
                 key={tab}
@@ -683,11 +683,14 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                     const esAprobado     = a.estado === 'aprobado';
                     const esCompleto     = a.estado === 'completo';
                     const esCancelado    = a.estado === 'cancelado';
+                    const esExceso       = a.estado === 'exceso';
                     const tieneSaldo     = Number(a.saldo_pendiente) > 0;
 
                     // Estilo del borde según estado
                     const borderStyle = esRechazado
                       ? '1.5px dashed #EF4444'
+                      : esExceso
+                      ? '1.5px solid rgba(245,158,11,0.4)'
                       : esAprobado && tieneSaldo
                       ? '1.5px solid rgba(239,68,68,0.35)'
                       : esPorVerificar
@@ -731,7 +734,34 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                           <AbonoEstadoBadge estado={a.estado} tieneSaldo={tieneSaldo} />
                         </div>
 
-                        {/* RECHAZADO: motivo + botón resubir */}
+                        {/* EXCESO: banner informativo */}
+                        {esExceso && (
+                          <div className="flex flex-col gap-2 px-4 py-3 rounded-xl text-xs"
+                            style={{ backgroundColor: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                            <p className="font-semibold" style={{ color: '#92400E' }}>💛 Recibimos tu pago — hay un excedente</p>
+                            <p style={{ color: '#78350F', lineHeight: 1.5 }}>
+                              Detectamos que el monto transferido es mayor al valor del taller. Tu inscripción está <strong>confirmada</strong>. Nos comunicaremos contigo muy pronto para coordinar la devolución del excedente. ¡Gracias por tu confianza!
+                            </p>
+                            {/* Comprobantes enviados */}
+                            {Array.isArray(a.comprobantes) && a.comprobantes.length > 0 && (
+                              <div className="mt-1 flex flex-col gap-1">
+                                <p className="text-xs font-semibold" style={{ color: '#92400E' }}>Comprobantes enviados ({a.comprobantes.length}):</p>
+                                {a.comprobantes.map((c: any, idx: number) => (
+                                  <a key={c.id_comprobante} href={c.url} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-xs font-medium underline"
+                                    style={{ color: c.subido_por === 'admin' ? '#1D4ED8' : '#92400E' }}>
+                                    #{idx + 1} — {c.subido_por === 'admin' ? 'Comprobante de devolución' : 'Tu comprobante'}
+                                    <span style={{ color: '#9CA3AF', fontWeight: 400 }}>
+                                      · {new Date(c.fecha_subida).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* RECHAZADO: motivo + botón resubir */}}
                         {esRechazado && (
                           <div className="rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
                             style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)' }}>
@@ -937,6 +967,7 @@ function ProfilePasswordHints({ password }: { password: string }) {
 function AbonoEstadoBadge({ estado, tieneSaldo }: { estado: string; tieneSaldo: boolean }) {
   if (estado === 'rechazado')     return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#DC2626' }}>Rechazado</span>;
   if (estado === 'cancelado')     return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(107,114,128,0.08)', color: '#6B7280' }}>Cancelado</span>;
+  if (estado === 'exceso')        return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#B45309' }}>Exceso de pago</span>;
   if (estado === 'completo')      return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(5,150,105,0.08)', color: '#059669' }}>Confirmado</span>;
   if (estado === 'aprobado' && tieneSaldo) return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#DC2626' }}>Saldo pendiente</span>;
   if (estado === 'aprobado')      return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(59,130,246,0.08)', color: '#2563EB' }}>Aprobado</span>;

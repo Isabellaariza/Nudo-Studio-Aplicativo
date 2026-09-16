@@ -3,7 +3,26 @@ import {
   enviarCorreoMatriculaConfirmada,
   enviarCorreoMatriculaCancelada,
   enviarCorreoInscripcionTaller,
+  enviarCorreoExcesoPago,
 } from '../config/email.js';
+
+// Helper: guarda un comprobante en abono_comprobantes y actualiza abonos.comprobante_pago
+async function guardarComprobante(client, id_abono, url, subido_por = 'cliente') {
+  await client.query(
+    `INSERT INTO abono_comprobantes (id_abono, url, subido_por) VALUES ($1, $2, $3)`,
+    [id_abono, url, subido_por]
+  );
+  await client.query(`UPDATE abonos SET comprobante_pago = $1 WHERE id_abono = $2`, [url, id_abono]);
+}
+
+// Helper: agrega una entrada al historial del abono
+async function agregarHistorial(client, id_abono, tipo, nota, extras = {}) {
+  await client.query(
+    `INSERT INTO abono_historial (id_abono, tipo, nota, comprobante_devolucion, monto_exceso)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [id_abono, tipo, nota || null, extras.comprobante_devolucion || null, extras.monto_exceso || null]
+  );
+}
 
 // Estados válidos de abono
 // 'por_verificar' → cliente subió comprobante, espera revisión
@@ -29,7 +48,19 @@ export async function misAbonos(req, res, next) {
       WHERE e.id_usuarios = $1
       ORDER BY a.fecha_abono DESC, a.id_abono DESC
     `, [id_usuario]);
-    res.json({ abonos: result.rows });
+
+    // Adjuntar comprobantes e historial a cada abono
+    const abonos = result.rows;
+    for (const a of abonos) {
+      const [compRes, histRes] = await Promise.all([
+        pool.query(`SELECT id_comprobante, url, subido_por, fecha_subida FROM abono_comprobantes WHERE id_abono = $1 ORDER BY fecha_subida ASC`, [a.id_abono]),
+        pool.query(`SELECT tipo, nota, comprobante_devolucion, monto_exceso, creado_en FROM abono_historial WHERE id_abono = $1 ORDER BY creado_en ASC`, [a.id_abono]),
+      ]);
+      a.comprobantes = compRes.rows;
+      a.historial    = histRes.rows;
+    }
+
+    res.json({ abonos });
   } catch (err) { next(err); }
 }
 
@@ -89,7 +120,7 @@ export async function listarEstudiantesDisponibles(req, res, next) {
 
 export async function listarAbonos(req, res, next) {
   try {
-    const { fecha } = req.query; // filtro opcional: ?fecha=2024-01-15
+    const { fecha } = req.query;
     let whereClause = '';
     const params = [];
     if (fecha) {
@@ -115,9 +146,19 @@ export async function listarAbonos(req, res, next) {
       ${whereClause}
       ORDER BY a.fecha_abono DESC, a.id_abono DESC
     `, params);
-    res.json({ abonos: result.rows, total: result.rowCount });
+
+    const abonos = result.rows;
+    for (const a of abonos) {
+      const [compRes, histRes] = await Promise.all([
+        pool.query(`SELECT id_comprobante, url, subido_por, fecha_subida FROM abono_comprobantes WHERE id_abono = $1 ORDER BY fecha_subida ASC`, [a.id_abono]),
+        pool.query(`SELECT tipo, nota, comprobante_devolucion, monto_exceso, creado_en FROM abono_historial WHERE id_abono = $1 ORDER BY creado_en ASC`, [a.id_abono]),
+      ]);
+      a.comprobantes = compRes.rows;
+      a.historial    = histRes.rows;
+    }
+
+    res.json({ abonos, total: abonos.length });
   } catch (err) { next(err); }
-}
 
 export async function crearAbono(req, res, next) {
   const { id_estudiante, id_taller, id_matricula, monto_abono, saldo_pendiente, metodo_pago, fecha_abono, comprobante_pago } = req.body;
@@ -367,14 +408,95 @@ export async function aprobarAbono(req, res, next) {
 export async function resubirComprobanteAbono(req, res, next) {
   const { comprobante_pago } = req.body;
   if (!comprobante_pago) return res.status(400).json({ mensaje: 'URL del comprobante requerida' });
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      `UPDATE abonos SET comprobante_pago = $1, estado = 'por_verificar', motivo_rechazo = NULL WHERE id_abono = $2 RETURNING id_abono`,
-      [comprobante_pago, req.params.id]
-    );
-    if (!result.rows.length) return res.status(404).json({ mensaje: 'Abono no encontrado' });
+    await client.query('BEGIN');
+    const check = await client.query(`SELECT id_abono FROM abonos WHERE id_abono = $1`, [req.params.id]);
+    if (!check.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado' }); }
+
+    await guardarComprobante(client, Number(req.params.id), comprobante_pago, 'cliente');
+    await client.query(`UPDATE abonos SET estado = 'por_verificar', motivo_rechazo = NULL WHERE id_abono = $1`, [req.params.id]);
+    await agregarHistorial(client, Number(req.params.id), 'reenvio_comprobante', 'Cliente reenvió comprobante de pago');
+
+    await client.query('COMMIT');
     res.json({ mensaje: 'Comprobante actualizado, pendiente de revisión' });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK'); next(err); }
+  finally { client.release(); }
+}
+
+export async function marcarExceso(req, res, next) {
+  const { monto_exceso, nota, comprobante_devolucion } = req.body || {};
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const abonoRes = await client.query(
+      `SELECT a.id_abono, a.monto_abono, a.id_estudiante, a.id_taller,
+              e.nombre_completo AS estudiante, e.email,
+              pt.nombre_taller, pt.precio
+       FROM abonos a
+       LEFT JOIN estudiantes e ON a.id_estudiante = e.id_estudiante
+       LEFT JOIN talleres t ON a.id_taller = t.id_talleres
+       LEFT JOIN programacion_talleres pt ON t.id_programacion = pt.id_programacion_taller
+       WHERE a.id_abono = $1`, [req.params.id]
+    );
+    if (!abonoRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado' }); }
+    const abono = abonoRes.rows[0];
+
+    // Si se sube comprobante de devolución, guardarlo en la tabla de comprobantes
+    if (comprobante_devolucion) {
+      await guardarComprobante(client, abono.id_abono, comprobante_devolucion, 'admin');
+    }
+
+    await client.query(`UPDATE abonos SET estado = 'exceso' WHERE id_abono = $1`, [req.params.id]);
+
+    const notaHistorial = nota || (monto_exceso ? `Exceso detectado: $${Number(monto_exceso).toLocaleString('es-CO')} COP` : 'Pago con exceso detectado');
+    await agregarHistorial(client, abono.id_abono, 'exceso_detectado', notaHistorial, {
+      monto_exceso: monto_exceso || null,
+      comprobante_devolucion: comprobante_devolucion || null,
+    });
+
+    await client.query('COMMIT');
+
+    // Correo al cliente
+    if (abono.email) {
+      const precio = Number(abono.precio) || 0;
+      const pagado = Number(abono.monto_abono) || 0;
+      const exceso = monto_exceso ? Number(monto_exceso) : Math.max(0, pagado - precio);
+      enviarCorreoExcesoPago({
+        email: abono.email,
+        nombre: abono.estudiante || 'Cliente',
+        taller: abono.nombre_taller || 'Taller',
+        monto_pagado: pagado,
+        monto_esperado: precio,
+        exceso,
+      }).catch(() => {});
+    }
+
+    res.json({ mensaje: 'Abono marcado como exceso, cliente notificado' });
+  } catch (err) { await client.query('ROLLBACK'); next(err); }
+  finally { client.release(); }
+}
+
+export async function registrarDevolucion(req, res, next) {
+  const { comprobante_devolucion, nota, monto_exceso } = req.body || {};
+  if (!comprobante_devolucion) return res.status(400).json({ mensaje: 'URL del comprobante de devolución requerida' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const check = await client.query(`SELECT id_abono FROM abonos WHERE id_abono = $1 AND estado = 'exceso'`, [req.params.id]);
+    if (!check.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado o no está en estado exceso' }); }
+
+    await guardarComprobante(client, Number(req.params.id), comprobante_devolucion, 'admin');
+    await agregarHistorial(client, Number(req.params.id), 'devolucion_registrada',
+      nota || 'Comprobante de devolución del excedente registrado',
+      { comprobante_devolucion, monto_exceso: monto_exceso || null }
+    );
+
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Devolución registrada correctamente' });
+  } catch (err) { await client.query('ROLLBACK'); next(err); }
+  finally { client.release(); }
 }
 
 export async function pagarSaldo(req, res, next) {
@@ -487,6 +609,13 @@ export async function crearAbonoTaller(req, res, next) {
        VALUES ($1, $2, $3, $4, $5, 'por_verificar', CURRENT_DATE, $6, $7) RETURNING *`,
       [id_estudiante, id_taller, monto_abono, saldo < 0 ? 0 : saldo, metodo_pago || 'Transferencia', vencimiento_pago, comprobante_pago || null]
     );
+    const nuevoId = result.rows[0].id_abono;
+
+    // Guardar comprobante en tabla de comprobantes si viene uno
+    if (comprobante_pago) {
+      await guardarComprobante(client, nuevoId, comprobante_pago, 'cliente');
+    }
+    await agregarHistorial(client, nuevoId, 'creacion', 'Abono inicial registrado por el cliente');
 
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Abono registrado, pendiente de verificación', abono: result.rows[0] });

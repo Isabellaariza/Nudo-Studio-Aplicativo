@@ -1,0 +1,27 @@
+-- Tabla para guardar TODOS los comprobantes enviados por un abono (nunca se pierden)
+CREATE TABLE IF NOT EXISTS abono_comprobantes (
+  id_comprobante  SERIAL PRIMARY KEY,
+  id_abono        INTEGER NOT NULL REFERENCES abonos(id_abono) ON DELETE CASCADE,
+  url             TEXT NOT NULL,
+  subido_por      VARCHAR(20) DEFAULT 'cliente',  -- 'cliente' | 'admin'
+  fecha_subida    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabla de historial/notas internas de un abono (para exceso, devoluciones, etc.)
+CREATE TABLE IF NOT EXISTS abono_historial (
+  id_historial  SERIAL PRIMARY KEY,
+  id_abono      INTEGER NOT NULL REFERENCES abonos(id_abono) ON DELETE CASCADE,
+  tipo          VARCHAR(50) NOT NULL,   -- 'exceso_detectado' | 'devolucion_registrada' | 'rechazo' | 'aprobacion'
+  nota          TEXT,
+  comprobante_devolucion TEXT,          -- URL del comprobante de devolución (solo para exceso)
+  monto_exceso  NUMERIC(12,2),
+  creado_en     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migrar comprobantes existentes en abonos.comprobante_pago a la nueva tabla
+INSERT INTO abono_comprobantes (id_abono, url, subido_por, fecha_subida)
+SELECT id_abono, comprobante_pago, 'cliente', fecha_abono
+FROM abonos
+WHERE comprobante_pago IS NOT NULL
+  AND comprobante_pago <> ''
+ON CONFLICT DO NOTHING;

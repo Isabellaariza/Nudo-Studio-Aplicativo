@@ -217,18 +217,23 @@ export async function cambiarContrasena(req, res, next) {
 }
 
 export async function solicitarRecuperacion(req, res, next) {
-  const { correo } = req.body;
+  const { correo, contrasenaActual } = req.body;
   if (!correo) return res.status(400).json({ mensaje: 'El correo es obligatorio' });
+  if (!contrasenaActual) return res.status(400).json({ mensaje: 'La contraseña actual es obligatoria' });
 
   try {
     const result = await pool.query(
-      'SELECT id_usuarios, nombre FROM usuarios WHERE email = $1 AND estado = TRUE',
+      'SELECT id_usuarios, nombre, contrasena_hash FROM usuarios WHERE email = $1 AND estado = TRUE',
       [correo.toLowerCase()]
     );
     if (result.rows.length === 0)
-      return res.json({ mensaje: 'Si el correo está registrado, podrás continuar.' });
+      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
 
     const usuario = result.rows[0];
+    const valida = await bcrypt.compare(contrasenaActual, usuario.contrasena_hash);
+    if (!valida)
+      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
+
     const token = crypto.randomBytes(32).toString('hex');
     const expira = new Date(Date.now() + 60 * 60 * 1000);
 

@@ -95,6 +95,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', address: '', documentType: 'Cédula de Ciudadanía', documentNumber: '' });
   const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotPassword, setForgotPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -156,7 +157,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault(); setIsLoading(true);
     try {
-      const res = await auth.forgotPassword(forgotEmail);
+      const res = await auth.forgotPassword(forgotEmail, forgotPassword);
       if (res.token) {
         setResetToken(res.token);
         setMode('reset');
@@ -178,7 +179,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     try {
       await auth.resetPassword(resetToken, newPassword);
       toast.success('¡Contraseña actualizada! Ya puedes iniciar sesión.');
-      setMode('login'); setResetToken(''); setNewPassword(''); setConfirmPassword(''); setForgotEmail('');
+      setMode('login'); setResetToken(''); setNewPassword(''); setConfirmPassword(''); setForgotEmail(''); setForgotPassword('');
       window.history.replaceState({}, '', window.location.pathname);
     } catch (err: any) { toast.error(err.message); }
     finally { setIsLoading(false); }
@@ -214,7 +215,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 <p style={{ fontSize: '0.8rem', color: 'rgba(45,75,57,0.45)', textAlign: 'center' }}>
                   {mode === 'login' && 'Ingresa tus datos para continuar'}
                   {mode === 'register' && 'Completa el formulario para registrarte'}
-                  {mode === 'forgot' && 'Te enviaremos un enlace a tu correo'}
+                  {mode === 'forgot' && 'Verifica tu identidad para continuar'}
                   {mode === 'reset' && 'Crea tu nueva contraseña'}
                 </p>
               </motion.div>
@@ -229,9 +230,12 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   <Field icon={Mail} label="Correo electrónico">
                     <StyledInput type="email" placeholder="tu@email.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
                   </Field>
-                  <SubmitBtn isLoading={isLoading} label="Enviar instrucciones" />
+                  <Field icon={Lock} label="Contraseña actual">
+                    <StyledInput type="password" placeholder="Tu contraseña actual" value={forgotPassword} onChange={e => setForgotPassword(e.target.value)} required />
+                  </Field>
+                  <SubmitBtn isLoading={isLoading} label="Verificar y continuar" />
                   <div className="text-center pt-1">
-                    <button type="button" onClick={() => setMode('login')} className="inline-flex items-center gap-1 text-xs" style={{ color: 'rgba(45,75,57,0.45)' }}>
+                    <button type="button" onClick={() => { setMode('login'); setForgotPassword(''); }} className="inline-flex items-center gap-1 text-xs" style={{ color: 'rgba(45,75,57,0.45)' }}>
                       <ArrowLeft className="w-3.5 h-3.5" /> Volver al inicio de sesión
                     </button>
                   </div>

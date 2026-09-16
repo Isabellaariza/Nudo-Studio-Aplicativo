@@ -77,13 +77,13 @@ export const auth = {
     return res.json();
   },
 
-  forgotPassword: async (correo: string) => {
+  forgotPassword: async (correo: string, contrasenaActual: string) => {
     const res = await fetch(`${API_URL}/auth/recuperar-contrasena`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ correo }),
+      body: JSON.stringify({ correo, contrasenaActual }),
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje || 'Error al enviar el correo'); }
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje || 'Error al verificar los datos'); }
     return res.json();
   },
 

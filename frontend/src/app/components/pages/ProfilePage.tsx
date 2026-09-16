@@ -823,22 +823,34 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
             onClick={e => e.stopPropagation()}
           >
             {/* Header modal */}
-            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'rgba(45,75,57,0.08)' }}>
-              <div>
-                <p className="text-xs font-medium mb-0.5" style={{ color: '#B8860B' }}>PEDIDO</p>
-                <h3 className="font-elegant text-xl" style={{ color: '#2D4B39' }}>
-                  PED-{String(pedidoDetalle.id_pedidos).padStart(4, '0')}
-                </h3>
+            <div className="p-6 border-b" style={{ borderColor: 'rgba(45,75,57,0.08)' }}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium mb-0.5" style={{ color: '#B8860B' }}>PEDIDO</p>
+                  <h3 className="font-elegant text-xl" style={{ color: '#2D4B39' }}>
+                    PED-{String(pedidoDetalle.id_pedidos).padStart(4, '0')}
+                  </h3>
+                  <p className="text-xs mt-1" style={{ color: 'rgba(45,75,57,0.45)' }}>{formatFecha(pedidoDetalle.fecha)}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="text-right">
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'rgba(45,75,57,0.45)' }}>TOTAL</p>
+                    <p className="font-elegant text-2xl" style={{ color: '#B8860B' }}>
+                      ${Number(pedidoDetalle.total).toLocaleString('es-CO')}
+                    </p>
+                    <p className="text-xs" style={{ color: 'rgba(45,75,57,0.4)' }}>COP</p>
+                  </div>
+                  <button
+                    onClick={() => setPedidoDetalle(null)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                    style={{ backgroundColor: 'rgba(45,75,57,0.06)', color: '#2D4B39' }}
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="mt-3">
                 <StatusBadge estado={pedidoDetalle.estado} type="pedido" />
-                <button
-                  onClick={() => setPedidoDetalle(null)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: 'rgba(45,75,57,0.06)', color: '#2D4B39' }}
-                >
-                  <XCircle className="w-4 h-4" />
-                </button>
               </div>
             </div>
 

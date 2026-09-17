@@ -159,6 +159,7 @@ export async function listarAbonos(req, res, next) {
 
     res.json({ abonos, total: abonos.length });
   } catch (err) { next(err); }
+}
 
 export async function crearAbono(req, res, next) {
   const { id_estudiante, id_taller, id_matricula, monto_abono, saldo_pendiente, metodo_pago, fecha_abono, comprobante_pago } = req.body;

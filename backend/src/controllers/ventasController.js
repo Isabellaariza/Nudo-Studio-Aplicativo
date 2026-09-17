@@ -163,7 +163,7 @@ export async function obtenerPedido(req, res, next) {
 
 // ACTUALIZAR ESTADO DEL PEDIDO (APROBAR PAGO -> PRODUCCIÓN / RECHAZAR PAGO)
 export async function actualizarEstadoPedido(req, res, next) {
-  let { estado, motivo } = req.body; // 'PAGADO' (o 'EN_PRODUCCION') o 'RECHAZADO'
+  let { estado, motivo } = req.body;
   
   try {
     const id_pedidos = req.params.id;
@@ -192,25 +192,42 @@ export async function actualizarEstadoPedido(req, res, next) {
     if (!pedidoRes.rows.length) return res.status(404).json({ mensaje: 'Pedido no encontrado' });
     const pedido = pedidoRes.rows[0];
 
-    const result = await pool.query(
-      `UPDATE pedidos 
-       SET estado = $1, 
-           motivo_rechazo = $2 
-       WHERE id_pedidos = $3 RETURNING *`,
-      [
-        estadoFinal,
-        estadoFinal === 'RECHAZADO' ? (motivo || 'El comprobante de pago adjunto no es válido.') : null,
-        id_pedidos
-      ]
-    );
+    const motivoFinal = estadoFinal === 'RECHAZADO' ? (motivo || 'El comprobante de pago adjunto no es válido.') : null;
 
-    // Registrar venta automáticamente al ACEPTAR el pedido (EN_PRODUCCION)
-    // No se genera si el pedido es rechazado o completado (ya fue registrada al aceptar)
-    if (estadoFinal === 'EN_PRODUCCION') {
-      const client = await pool.connect();
-      try { await registrarVentaDesdePedido(client, id_pedidos); }
-      finally { client.release(); }
-    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE pedidos SET estado = $1, motivo_rechazo = $2 WHERE id_pedidos = $3 RETURNING *`,
+        [estadoFinal, motivoFinal, id_pedidos]
+      );
+
+      // Al rechazar: marcar el comprobante activo como RECHAZADO en el historial
+      if (estadoFinal === 'RECHAZADO') {
+        await client.query(
+          `UPDATE pedido_comprobantes SET estado = 'RECHAZADO', motivo_rechazo = $1
+           WHERE id_pedidos = $2 AND estado = 'PAGO_POR_VERIFICAR'`,
+          [motivoFinal, id_pedidos]
+        );
+      }
+
+      // Al aprobar: marcar el comprobante activo como APROBADO
+      if (estadoFinal === 'EN_PRODUCCION') {
+        await client.query(
+          `UPDATE pedido_comprobantes SET estado = 'APROBADO' WHERE id_pedidos = $1 AND estado = 'PAGO_POR_VERIFICAR'`,
+          [id_pedidos]
+        );
+        await registrarVentaDesdePedido(client, id_pedidos);
+      }
+
+      await client.query('COMMIT');
+
+      // Reasignar result para el resto del flujo
+      req._pedidoActualizado = result.rows[0];
+    } catch (err) { await client.query('ROLLBACK'); throw err; }
+    finally { client.release(); }
+
+    const result = { rows: [req._pedidoActualizado] };
 
     if (pedido.cliente_email) {
       const numero = `PED-${String(pedido.id_pedidos).padStart(4, '0')}`;
@@ -284,47 +301,59 @@ export async function cancelarPedido(req, res, next) {
 }
 
 // RE-SUBIR COMPROBANTE DE PAGO (DESDE EL PERFIL DEL CLIENTE)
+// Hace INSERT en pedido_comprobantes (historial) + UPDATE de pedidos.comprobante_pago (compatibilidad)
 export async function resubirComprobante(req, res, next) {
+  const client = await pool.connect();
   try {
     const id_pedidos = req.params.id;
-    const { comprobante_pago } = req.body; // Recibimos la URL de Cloudinary
+    const { comprobante_pago } = req.body;
 
     if (!comprobante_pago) {
       return res.status(400).json({ mensaje: 'La URL del comprobante es requerida' });
     }
 
-    const pedidoCheck = await pool.query('SELECT * FROM pedidos WHERE id_pedidos = $1', [id_pedidos]);
+    const pedidoCheck = await pool.query(
+      `SELECT id_pedidos, estado FROM pedidos WHERE id_pedidos = $1`, [id_pedidos]
+    );
     if (!pedidoCheck.rows.length) {
       return res.status(404).json({ mensaje: 'Pedido no encontrado' });
     }
 
-    const result = await pool.query(
-      `UPDATE pedidos 
-       SET estado = 'PAGO_POR_VERIFICAR', 
-           comprobante_pago = $1, 
-           motivo_rechazo = NULL 
-       WHERE id_pedidos = $2 
-       RETURNING *`,
+    // Solo se puede resubir si el pedido está RECHAZADO o PAGO_POR_VERIFICAR
+    const estadoActual = pedidoCheck.rows[0].estado;
+    if (!['RECHAZADO', 'PAGO_POR_VERIFICAR'].includes(estadoActual)) {
+      return res.status(409).json({ mensaje: 'No se puede resubir un comprobante en el estado actual del pedido' });
+    }
+
+    await client.query('BEGIN');
+
+    // INSERT en historial (nunca reemplaza el anterior)
+    await client.query(
+      `INSERT INTO pedido_comprobantes (id_pedidos, url, subido_por, estado) VALUES ($1, $2, 'cliente', 'PAGO_POR_VERIFICAR')`,
+      [id_pedidos, comprobante_pago]
+    );
+
+    // UPDATE compatibilidad + cambiar estado del pedido a PAGO_POR_VERIFICAR
+    const result = await client.query(
+      `UPDATE pedidos SET estado = 'PAGO_POR_VERIFICAR', comprobante_pago = $1, motivo_rechazo = NULL WHERE id_pedidos = $2 RETURNING *`,
       [comprobante_pago, id_pedidos]
     );
 
-    res.json({ 
-      mensaje: 'Comprobante re-subido con éxito. El pedido vuelve a estar en revisión.', 
-      pedido: result.rows[0] 
-    });
-
-  } catch (err) { 
-    next(err); 
-  }
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Comprobante re-subido con éxito. El pedido vuelve a estar en revisión.', pedido: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally { client.release(); }
 }
 
 // ══════════════════════════════════════════════════════════════
 //  VERIFICACIÓN Y PROCESAMIENTO DE PEDIDOS A PRODUCCIÓN
 // ══════════════════════════════════════════════════════════════
 
-// MARCAR EXCESO DE PAGO EN PEDIDO
+// MARCAR EXCESO DE PAGO EN PEDIDO (solo marca el estado, la devolución es un paso separado)
 export async function marcarExcesoPedido(req, res, next) {
-  const { monto_exceso, nota, comprobante_devolucion } = req.body || {};
+  const { monto_exceso, nota } = req.body || {};
   try {
     const pedidoRes = await pool.query(
       `SELECT p.id_pedidos, p.total, p.comprobante_pago,
@@ -357,6 +386,117 @@ export async function marcarExcesoPedido(req, res, next) {
     }
 
     res.json({ mensaje: 'Pedido marcado como exceso de pago, cliente notificado' });
+  } catch (err) { next(err); }
+}
+
+// REGISTRAR DEVOLUCIÓN DE EXCESO EN PEDIDO (admin sube comprobante de devolución)
+export async function registrarDevolucionPedido(req, res, next) {
+  const { comprobante_devolucion, monto_exceso, nota } = req.body || {};
+  if (!comprobante_devolucion) return res.status(400).json({ mensaje: 'El comprobante de devolución es obligatorio' });
+  try {
+    const pedidoCheck = await pool.query(
+      `SELECT id_pedidos, estado FROM pedidos WHERE id_pedidos = $1`, [req.params.id]
+    );
+    if (!pedidoCheck.rows.length) return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+    if (pedidoCheck.rows[0].estado !== 'EXCESO_PAGO') {
+      return res.status(409).json({ mensaje: 'El pedido no está en estado EXCESO_PAGO' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Guardar la devolución (documento separado del comprobante del cliente)
+      await client.query(
+        `INSERT INTO pedido_devoluciones (id_pedidos, monto_exceso, comprobante_devolucion, nota) VALUES ($1, $2, $3, $4)`,
+        [req.params.id, monto_exceso || null, comprobante_devolucion, nota || null]
+      );
+      await client.query(
+        `UPDATE pedidos SET estado = 'DEVOLUCION_ENVIADA' WHERE id_pedidos = $1`, [req.params.id]
+      );
+      await client.query('COMMIT');
+      res.json({ mensaje: 'Devolución registrada. El cliente debe confirmar la recepción.' });
+    } catch (err) { await client.query('ROLLBACK'); throw err; }
+    finally { client.release(); }
+  } catch (err) { next(err); }
+}
+
+// CONFIRMAR RECEPCIÓN DE DEVOLUCIÓN (cliente)
+export async function confirmarDevolucionPedido(req, res, next) {
+  const id_usuario = req.usuario?.id;
+  try {
+    // Verificar que el pedido pertenece al cliente autenticado
+    const pedidoRes = await pool.query(
+      `SELECT p.id_pedidos, p.estado FROM pedidos p
+       JOIN clientes c ON p.id_cliente = c.id_cliente
+       WHERE p.id_pedidos = $1 AND c.id_usuarios = $2`,
+      [req.params.id, id_usuario]
+    );
+    if (!pedidoRes.rows.length) return res.status(404).json({ mensaje: 'Pedido no encontrado o no te pertenece' });
+    if (pedidoRes.rows[0].estado !== 'DEVOLUCION_ENVIADA') {
+      return res.status(409).json({ mensaje: 'El pedido no está en estado DEVOLUCION_ENVIADA' });
+    }
+    // Verificar que no haya sido confirmado ya
+    const devCheck = await pool.query(
+      `SELECT id_devolucion FROM pedido_devoluciones WHERE id_pedidos = $1 AND confirmado_en IS NOT NULL`, [req.params.id]
+    );
+    if (devCheck.rows.length) return res.status(409).json({ mensaje: 'La devolución ya fue confirmada anteriormente' });
+
+    await pool.query(
+      `UPDATE pedido_devoluciones SET confirmado_en = NOW() WHERE id_pedidos = $1 AND confirmado_en IS NULL`, [req.params.id]
+    );
+    await pool.query(
+      `UPDATE pedidos SET estado = 'DEVOLUCION_CONFIRMADA' WHERE id_pedidos = $1`, [req.params.id]
+    );
+    res.json({ mensaje: 'Devolución confirmada. El administrador puede aprobar el pedido.' });
+  } catch (err) { next(err); }
+}
+
+// APROBAR PEDIDO TRAS DEVOLUCIÓN CONFIRMADA (admin)
+export async function aprobarTrasDevolucionPedido(req, res, next) {
+  const id_pedidos = req.params.id;
+  try {
+    const pedidoRes = await pool.query(
+      `SELECT p.id_pedidos, p.estado, c.nombre_completo AS cliente, c.email AS cliente_email,
+              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
+              COALESCE(JSON_AGG(JSON_BUILD_OBJECT('nombre', pr.nombre_producto, 'cantidad', d.cantidad, 'precio_unitario', d.precio_unitario)
+                ORDER BY pr.nombre_producto) FILTER (WHERE d.id_producto IS NOT NULL), '[]'::json) AS detalle
+       FROM pedidos p
+       LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
+       LEFT JOIN detalle_pedido d ON p.id_pedidos = d.id_pedidos
+       LEFT JOIN productos pr ON d.id_producto = pr.id_productos
+       WHERE p.id_pedidos = $1
+       GROUP BY p.id_pedidos, c.nombre_completo, c.email`, [id_pedidos]
+    );
+    if (!pedidoRes.rows.length) return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+    const pedido = pedidoRes.rows[0];
+
+    // Validación backend: solo se puede aprobar desde DEVOLUCION_CONFIRMADA
+    if (pedido.estado !== 'DEVOLUCION_CONFIRMADA') {
+      return res.status(409).json({ mensaje: 'El pedido debe estar en DEVOLUCION_CONFIRMADA para ser aprobado' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`UPDATE pedidos SET estado = 'EN_PRODUCCION' WHERE id_pedidos = $1`, [id_pedidos]);
+      // Marcar el comprobante como aprobado en el historial
+      await client.query(
+        `UPDATE pedido_comprobantes SET estado = 'APROBADO' WHERE id_pedidos = $1 AND estado = 'PAGO_POR_VERIFICAR'`, [id_pedidos]
+      );
+      await registrarVentaDesdePedido(client, id_pedidos);
+      await client.query('COMMIT');
+    } catch (err) { await client.query('ROLLBACK'); throw err; }
+    finally { client.release(); }
+
+    if (pedido.cliente_email) {
+      const numero = `PED-${String(pedido.id_pedidos).padStart(4, '0')}`;
+      enviarCorreoPedidoEnProduccion({
+        email: pedido.cliente_email, nombre: pedido.cliente,
+        numeroPedido: numero, producto: pedido.producto || 'Productos de Macramé',
+        detalle: pedido.detalle || []
+      }).catch(() => {});
+    }
+    res.json({ mensaje: 'Pedido aprobado y enviado a producción' });
   } catch (err) { next(err); }
 }
 export async function verificarInsumosPedido(req, res, next) {

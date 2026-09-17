@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verificarToken, verificarRol } from '../middleware/auth.js';
-import { listarAbonos, misAbonos, crearAbono, actualizarAbono, anularAbono, aprobarAbono, rechazarAbono, crearAbonoTaller, resubirComprobanteAbono, pagarSaldo, listarEstudiantesDisponibles, marcarExceso, registrarDevolucion } from '../controllers/abonosController.js';
+import { listarAbonos, misAbonos, crearAbono, actualizarAbono, anularAbono, aprobarAbono, rechazarAbono, crearAbonoTaller, resubirComprobanteAbono, pagarSaldo, listarEstudiantesDisponibles, marcarExceso, registrarDevolucion, confirmarDevolucionAbono } from '../controllers/abonosController.js';
 
 const router = Router();
 router.get('/estudiantes-disponibles', verificarToken, verificarRol('administrador', 'empleado'), listarEstudiantesDisponibles);
@@ -13,6 +13,7 @@ router.put('/:id/aprobar',             verificarToken, verificarRol('administrad
 router.put('/:id/rechazar',            verificarToken, verificarRol('administrador', 'empleado'), rechazarAbono);
 router.put('/:id/exceso',              verificarToken, verificarRol('administrador', 'empleado'), marcarExceso);
 router.put('/:id/devolucion',          verificarToken, verificarRol('administrador', 'empleado'), registrarDevolucion);
+router.put('/:id/confirmar-devolucion', verificarToken, confirmarDevolucionAbono);
 router.put('/:id/resubir-comprobante', verificarToken, resubirComprobanteAbono);
 router.put('/:id',                     verificarToken, verificarRol('administrador', 'empleado'), actualizarAbono);
 router.delete('/:id',                  verificarToken, verificarRol('administrador'), anularAbono);

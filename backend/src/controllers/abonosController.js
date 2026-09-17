@@ -271,6 +271,13 @@ export async function aprobarAbono(req, res, next) {
       return res.status(409).json({ mensaje: 'Este abono ya fue aprobado' });
     }
 
+    // Validar que si viene de devolucion_confirmada, se permite aprobar
+    const estadosAprobables = ['por_verificar', 'devolucion_confirmada'];
+    if (!estadosAprobables.includes(abono.estado)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ mensaje: `No se puede aprobar un abono en estado '${abono.estado}'` });
+    }
+
     const id_estudiante = abono.id_estudiante;
     if (!id_estudiante) { await client.query('ROLLBACK'); return res.status(400).json({ mensaje: 'El abono no tiene estudiante asociado' }); }
 
@@ -485,7 +492,7 @@ export async function registrarDevolucion(req, res, next) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const check = await client.query(`SELECT id_abono FROM abonos WHERE id_abono = $1 AND estado = 'exceso'`, [req.params.id]);
+    const check = await client.query(`SELECT id_abono, estado FROM abonos WHERE id_abono = $1 AND estado = 'exceso'`, [req.params.id]);
     if (!check.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado o no está en estado exceso' }); }
 
     await guardarComprobante(client, Number(req.params.id), comprobante_devolucion, 'admin');
@@ -493,9 +500,43 @@ export async function registrarDevolucion(req, res, next) {
       nota || 'Comprobante de devolución del excedente registrado',
       { comprobante_devolucion, monto_exceso: monto_exceso || null }
     );
+    // Cambiar estado a devolucion_enviada
+    await client.query(`UPDATE abonos SET estado = 'devolucion_enviada' WHERE id_abono = $1`, [req.params.id]);
 
     await client.query('COMMIT');
-    res.json({ mensaje: 'Devolución registrada correctamente' });
+    res.json({ mensaje: 'Devolución registrada. El cliente debe confirmar la recepción.' });
+  } catch (err) { await client.query('ROLLBACK'); next(err); }
+  finally { client.release(); }
+}
+
+export async function confirmarDevolucionAbono(req, res, next) {
+  const id_usuario = req.usuario?.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Verificar que el abono pertenece al usuario autenticado y está en devolucion_enviada
+    const abonoRes = await client.query(
+      `SELECT a.id_abono, a.estado FROM abonos a
+       JOIN estudiantes e ON a.id_estudiante = e.id_estudiante
+       WHERE a.id_abono = $1 AND e.id_usuarios = $2`,
+      [req.params.id, id_usuario]
+    );
+    if (!abonoRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Abono no encontrado o no te pertenece' }); }
+    if (abonoRes.rows[0].estado !== 'devolucion_enviada') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ mensaje: 'El abono no está en estado devolucion_enviada' });
+    }
+    // Verificar que no haya sido confirmado ya (historial)
+    const yaConfirmado = await client.query(
+      `SELECT id_historial FROM abono_historial WHERE id_abono = $1 AND tipo = 'devolucion_confirmada'`, [req.params.id]
+    );
+    if (yaConfirmado.rows.length) { await client.query('ROLLBACK'); return res.status(409).json({ mensaje: 'La devolución ya fue confirmada anteriormente' }); }
+
+    await client.query(`UPDATE abonos SET estado = 'devolucion_confirmada' WHERE id_abono = $1`, [req.params.id]);
+    await agregarHistorial(client, Number(req.params.id), 'devolucion_confirmada', 'Cliente confirmó la recepción de la devolución');
+
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Devolución confirmada. El administrador puede aprobar la inscripción.' });
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 }

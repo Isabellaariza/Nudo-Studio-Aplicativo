@@ -209,7 +209,14 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
   // Clasificación de los pedidos
   const pedidosRechazados = pedidos.filter(p => isPedidoRechazado(p.estado));
   const pedidosExceso = pedidos.filter(p => p.estado === 'EXCESO_PAGO');
-  const pedidosNormales = pedidos.filter(p => !isPedidoRechazado(p.estado) && p.estado !== 'EXCESO_PAGO');
+  const pedidosDevolucionEnviada = pedidos.filter(p => p.estado === 'DEVOLUCION_ENVIADA');
+  const pedidosDevolucionConfirmada = pedidos.filter(p => p.estado === 'DEVOLUCION_CONFIRMADA');
+  const pedidosNormales = pedidos.filter(p =>
+    !isPedidoRechazado(p.estado) &&
+    p.estado !== 'EXCESO_PAGO' &&
+    p.estado !== 'DEVOLUCION_ENVIADA' &&
+    p.estado !== 'DEVOLUCION_CONFIRMADA'
+  );
 
   return (
     <div className="min-h-screen py-10 px-6 pb-20" style={{ backgroundColor: '#FAF7F2' }}>
@@ -500,7 +507,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
           {(['orders', 'workshops'] as const).map(tab => {
             // Contador de acciones pendientes por tab
             const count = tab === 'orders'
-              ? pedidosRechazados.length + pedidosExceso.length
+              ? pedidosRechazados.length + pedidosExceso.length + pedidosDevolucionEnviada.length + pedidosDevolucionConfirmada.length
               : misAbonos.filter((a: any) => a.estado === 'por_verificar' || (a.estado === 'aprobado' && Number(a.saldo_pendiente) > 0) || a.estado === 'rechazado' || a.estado === 'exceso').length;
             return (
               <button
@@ -632,15 +639,11 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                             style={{ border: '1.5px solid rgba(245,158,11,0.35)', backgroundColor: 'rgba(255,251,235,0.5)' }}>
                             <div className="flex justify-between items-start gap-4">
                               <div className="min-w-0">
-                                <p className="font-medium text-sm mb-0.5" style={{ color: '#2D4B39' }}>
-                                  PED-{String(p.id_pedidos).padStart(4, '0')}
-                                </p>
+                                <p className="font-medium text-sm mb-0.5" style={{ color: '#2D4B39' }}>PED-{String(p.id_pedidos).padStart(4, '0')}</p>
                                 <p className="text-xs" style={{ color: 'rgba(45,75,57,0.5)' }}>{formatFecha(p.fecha)}</p>
                               </div>
                               <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
-                                <p className="font-elegant text-base" style={{ color: '#B8860B' }}>
-                                  ${Number(p.total).toLocaleString('es-CO')}
-                                </p>
+                                <p className="font-elegant text-base" style={{ color: '#B8860B' }}>${Number(p.total).toLocaleString('es-CO')}</p>
                                 <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#B45309' }}>Exceso de pago</span>
                                 <button onClick={() => setPedidoDetalle(p)}
                                   className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors"
@@ -652,15 +655,87 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                             <div className="flex flex-col gap-2 px-4 py-3 rounded-xl text-xs"
                               style={{ backgroundColor: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)' }}>
                               <p className="font-semibold" style={{ color: '#92400E' }}>Recibimos tu pago — hay un excedente</p>
-                              <p style={{ color: '#78350F', lineHeight: 1.5 }}>
-                                Detectamos que el monto transferido es mayor al valor del pedido. Tu pedido está <strong>confirmado y en proceso</strong>. Nos comunicaremos contigo muy pronto para coordinar la devolución del excedente. ¡Gracias por tu confianza!
-                              </p>
+                              <p style={{ color: '#78350F', lineHeight: 1.5 }}>Detectamos que el monto transferido es mayor al valor del pedido. Tu pedido está <strong>confirmado y en proceso</strong>. Estamos procesando la devolución del excedente.</p>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {/* SECCIÓN 2B: PEDIDOS CON DEVOLUCIÓN ENVIADA */}
+                  {pedidos.filter((p: any) => p.estado === 'DEVOLUCION_ENVIADA').map((p: any) => (
+                    <div key={`dev-${p.id_pedidos}`} className="bg-white rounded-xl p-5 flex flex-col gap-4"
+                      style={{ border: '1.5px solid rgba(91,33,182,0.3)', backgroundColor: 'rgba(237,233,254,0.3)' }}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm mb-0.5" style={{ color: '#2D4B39' }}>PED-{String(p.id_pedidos).padStart(4, '0')}</p>
+                          <p className="text-xs" style={{ color: 'rgba(45,75,57,0.5)' }}>{formatFecha(p.fecha)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                          <p className="font-elegant text-base" style={{ color: '#B8860B' }}>${Number(p.total).toLocaleString('es-CO')}</p>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(91,33,182,0.08)', color: '#5B21B6' }}>Devolución Enviada</span>
+                          <button onClick={() => setPedidoDetalle(p)}
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border"
+                            style={{ borderColor: 'rgba(45,75,57,0.15)', color: '#2D4B39' }}>
+                            <Eye className="w-3 h-3" /> Ver detalle
+                          </button>
+                        </div>
+                      </div>
+                      {p.devolucion && (
+                        <div className="flex flex-col gap-3 px-4 py-3 rounded-xl text-xs"
+                          style={{ backgroundColor: 'rgba(91,33,182,0.05)', border: '1px solid rgba(91,33,182,0.15)' }}>
+                          <p className="font-semibold" style={{ color: '#5B21B6' }}>💸 Te devolvimos el excedente</p>
+                          {p.devolucion.monto_exceso && (
+                            <p style={{ color: '#4C1D95' }}>Monto devuelto: <strong>${Number(p.devolucion.monto_exceso).toLocaleString('es-CO')} COP</strong></p>
+                          )}
+                          <a href={p.devolucion.comprobante_devolucion} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 font-medium underline" style={{ color: '#5B21B6' }}>
+                            Ver comprobante de devolución
+                          </a>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await pedidosAPI.confirmarDevolucionPedido(p.id_pedidos);
+                                toast.success('Devolución confirmada');
+                                await cargarPedidos();
+                              } catch (err: any) { toast.error(err.message || 'Error al confirmar'); }
+                            }}
+                            className="self-start px-4 py-2 rounded-lg text-xs font-semibold text-white"
+                            style={{ background: '#5B21B6' }}>
+                            Confirmar que recibí la devolución
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* SECCIÓN 2C: PEDIDOS CON DEVOLUCIÓN CONFIRMADA */}
+                  {pedidos.filter((p: any) => p.estado === 'DEVOLUCION_CONFIRMADA').map((p: any) => (
+                    <div key={`devc-${p.id_pedidos}`} className="bg-white rounded-xl p-5 flex flex-col gap-4"
+                      style={{ border: '1.5px solid rgba(16,185,129,0.25)' }}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm mb-0.5" style={{ color: '#2D4B39' }}>PED-{String(p.id_pedidos).padStart(4, '0')}</p>
+                          <p className="text-xs" style={{ color: 'rgba(45,75,57,0.5)' }}>{formatFecha(p.fecha)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                          <p className="font-elegant text-base" style={{ color: '#B8860B' }}>${Number(p.total).toLocaleString('es-CO')}</p>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(16,185,129,0.08)', color: '#059669' }}>Devolución Confirmada</span>
+                          <button onClick={() => setPedidoDetalle(p)}
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border"
+                            style={{ borderColor: 'rgba(45,75,57,0.15)', color: '#2D4B39' }}>
+                            <Eye className="w-3 h-3" /> Ver detalle
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs font-medium"
+                        style={{ backgroundColor: 'rgba(16,185,129,0.07)', color: '#065F46', border: '1px solid rgba(16,185,129,0.15)' }}>
+                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                        Devolución confirmada. El equipo de Nudo Studio aprobará tu pedido pronto.
+                      </div>
+                    </div>
+                  ))}
 
                   {/* SECCIÓN 3: HISTORIAL GENERAL DE PEDIDOS (Pendientes y Completados) */}
                   <div className="space-y-3">
@@ -781,30 +856,14 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                           <AbonoEstadoBadge estado={a.estado} tieneSaldo={tieneSaldo} />
                         </div>
 
-                        {/* EXCESO: banner informativo */}
+                        {/* EXCESO: banner informativo con devolución */}
                         {esExceso && (
                           <div className="flex flex-col gap-2 px-4 py-3 rounded-xl text-xs"
                             style={{ backgroundColor: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)' }}>
                             <p className="font-semibold" style={{ color: '#92400E' }}>💛 Recibimos tu pago — hay un excedente</p>
                             <p style={{ color: '#78350F', lineHeight: 1.5 }}>
-                              Detectamos que el monto transferido es mayor al valor del taller. Tu inscripción está <strong>confirmada</strong>. Nos comunicaremos contigo muy pronto para coordinar la devolución del excedente. ¡Gracias por tu confianza!
+                              Detectamos que el monto transferido es mayor al valor del taller. Tu inscripción está <strong>confirmada</strong>. Estamos procesando la devolución del excedente.
                             </p>
-                            {/* Comprobantes enviados */}
-                            {Array.isArray(a.comprobantes) && a.comprobantes.length > 0 && (
-                              <div className="mt-1 flex flex-col gap-1">
-                                <p className="text-xs font-semibold" style={{ color: '#92400E' }}>Comprobantes enviados ({a.comprobantes.length}):</p>
-                                {a.comprobantes.map((c: any, idx: number) => (
-                                  <a key={c.id_comprobante} href={c.url} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 text-xs font-medium underline"
-                                    style={{ color: c.subido_por === 'admin' ? '#1D4ED8' : '#92400E' }}>
-                                    #{idx + 1} — {c.subido_por === 'admin' ? 'Comprobante de devolución' : 'Tu comprobante'}
-                                    <span style={{ color: '#9CA3AF', fontWeight: 400 }}>
-                                      · {new Date(c.fecha_subida).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                                    </span>
-                                  </a>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -829,6 +888,48 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                                   className="hidden" />
                               </label>
                             </div>
+                          </div>
+                        )}
+
+                        {/* DEVOLUCIÓN ENVIADA: cliente puede confirmar */}
+                        {a.estado === 'devolucion_enviada' && (() => {
+                          const devComp = Array.isArray(a.comprobantes) ? a.comprobantes.find((c: any) => c.subido_por === 'admin') : null;
+                          const devHistorial = Array.isArray(a.historial) ? a.historial.find((h: any) => h.tipo === 'devolucion_registrada') : null;
+                          return (
+                            <div className="flex flex-col gap-3 px-4 py-3 rounded-xl text-xs"
+                              style={{ backgroundColor: 'rgba(91,33,182,0.05)', border: '1px solid rgba(91,33,182,0.15)' }}>
+                              <p className="font-semibold" style={{ color: '#5B21B6' }}>💸 Te devolvimos el excedente</p>
+                              {devHistorial?.monto_exceso && (
+                                <p style={{ color: '#4C1D95' }}>Monto devuelto: <strong>${Number(devHistorial.monto_exceso).toLocaleString('es-CO')} COP</strong></p>
+                              )}
+                              {devComp && (
+                                <a href={devComp.url} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 font-medium underline" style={{ color: '#5B21B6' }}>
+                                  Ver comprobante de devolución
+                                </a>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await abonosAPI.confirmarDevolucionAbono(a.id_abono);
+                                    toast.success('Devolución confirmada');
+                                    await cargarMatriculas();
+                                  } catch (err: any) { toast.error(err.message || 'Error al confirmar'); }
+                                }}
+                                className="self-start px-4 py-2 rounded-lg text-xs font-semibold text-white"
+                                style={{ background: '#5B21B6' }}>
+                                Confirmar que recibí la devolución
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        {/* DEVOLUCIÓN CONFIRMADA */}
+                        {a.estado === 'devolucion_confirmada' && (
+                          <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs font-medium"
+                            style={{ backgroundColor: 'rgba(16,185,129,0.07)', color: '#065F46', border: '1px solid rgba(16,185,129,0.15)' }}>
+                            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                            Devolución confirmada. El equipo de Nudo Studio aprobará tu inscripción pronto.
                           </div>
                         )}
 
@@ -1012,13 +1113,15 @@ function ProfilePasswordHints({ password }: { password: string }) {
 }
 
 function AbonoEstadoBadge({ estado, tieneSaldo }: { estado: string; tieneSaldo: boolean }) {
-  if (estado === 'rechazado')     return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#DC2626' }}>Rechazado</span>;
-  if (estado === 'cancelado')     return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(107,114,128,0.08)', color: '#6B7280' }}>Cancelado</span>;
-  if (estado === 'exceso')        return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#B45309' }}>Exceso de pago</span>;
-  if (estado === 'completo')      return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(5,150,105,0.08)', color: '#059669' }}>Confirmado</span>;
+  if (estado === 'rechazado')              return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#DC2626' }}>Rechazado</span>;
+  if (estado === 'cancelado')              return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(107,114,128,0.08)', color: '#6B7280' }}>Cancelado</span>;
+  if (estado === 'exceso')                 return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#B45309' }}>Exceso de pago</span>;
+  if (estado === 'devolucion_enviada')     return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(91,33,182,0.08)', color: '#5B21B6' }}>Devolución Enviada</span>;
+  if (estado === 'devolucion_confirmada')  return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(16,185,129,0.08)', color: '#059669' }}>Devolución Confirmada</span>;
+  if (estado === 'completo')               return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(5,150,105,0.08)', color: '#059669' }}>Confirmado</span>;
   if (estado === 'aprobado' && tieneSaldo) return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#DC2626' }}>Saldo pendiente</span>;
-  if (estado === 'aprobado')      return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(59,130,246,0.08)', color: '#2563EB' }}>Aprobado</span>;
-  return                                 <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#B45309' }}>En revisión</span>;
+  if (estado === 'aprobado')               return <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(59,130,246,0.08)', color: '#2563EB' }}>Aprobado</span>;
+  return                                          <span className="px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#B45309' }}>En revisión</span>;
 }
 
 function EmptyState({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle: string }) {

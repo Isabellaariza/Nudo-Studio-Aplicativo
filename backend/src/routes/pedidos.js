@@ -11,6 +11,9 @@ import {
   verificarInsumosPedido,
   aprobarYEnviarAProduccion,
   marcarExcesoPedido,
+  registrarDevolucionPedido,
+  confirmarDevolucionPedido,
+  aprobarTrasDevolucionPedido,
 } from '../controllers/ventasController.js';
 import pool from '../config/db.js';
 
@@ -42,7 +45,27 @@ router.get('/mis-pedidos', verificarToken, async (req, res, next) => {
       GROUP BY p.id_pedidos
       ORDER BY p.created_at DESC
     `, [req.usuario.id]);
-    res.json({ pedidos: result.rows });
+
+    const pedidos = result.rows;
+    // Adjuntar historial de comprobantes y devolución a cada pedido
+    for (const p of pedidos) {
+      const [compRes, devRes] = await Promise.all([
+        pool.query(
+          `SELECT id_comprobante, url, subido_por, estado, motivo_rechazo, fecha_subida
+           FROM pedido_comprobantes WHERE id_pedidos = $1 ORDER BY fecha_subida ASC`,
+          [p.id_pedidos]
+        ),
+        pool.query(
+          `SELECT id_devolucion, monto_exceso, comprobante_devolucion, nota, confirmado_en, creado_en
+           FROM pedido_devoluciones WHERE id_pedidos = $1 ORDER BY creado_en DESC LIMIT 1`,
+          [p.id_pedidos]
+        ),
+      ]);
+      p.comprobantes = compRes.rows;
+      p.devolucion   = devRes.rows[0] || null;
+    }
+
+    res.json({ pedidos });
   } catch (err) { next(err); }
 });
 
@@ -115,8 +138,11 @@ router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), ac
 router.put('/:id/cancelar', verificarToken, cancelarPedido);
 router.put('/:id/exceso', verificarToken, verificarRol('administrador', 'empleado'), marcarExcesoPedido);
 
-router.put('/:id/resubir-comprobante', verificarToken, resubirComprobante);
-router.get('/:id/verificar-insumos', verificarToken, verificarInsumosPedido);
-router.post('/:id/aprobar-produccion', verificarToken, verificarRol('administrador', 'empleado'), aprobarYEnviarAProduccion);
+router.put('/:id/resubir-comprobante',      verificarToken, resubirComprobante);
+router.put('/:id/devolucion',               verificarToken, verificarRol('administrador', 'empleado'), registrarDevolucionPedido);
+router.put('/:id/confirmar-devolucion',     verificarToken, confirmarDevolucionPedido);
+router.put('/:id/aprobar-devolucion',       verificarToken, verificarRol('administrador', 'empleado'), aprobarTrasDevolucionPedido);
+router.get('/:id/verificar-insumos',        verificarToken, verificarInsumosPedido);
+router.post('/:id/aprobar-produccion',      verificarToken, verificarRol('administrador', 'empleado'), aprobarYEnviarAProduccion);
 
 export default router;

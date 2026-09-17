@@ -634,6 +634,21 @@ export const pedidosAPI = {
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
     return res.json();
   },
+  registrarDevolucionPedido: async (id: number, data: { comprobante_devolucion: string; monto_exceso?: number; nota?: string }) => {
+    const res = await fetchWithAuth(`${API_URL}/pedidos/${id}/devolucion`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  confirmarDevolucionPedido: async (id: number) => {
+    const res = await fetchWithAuth(`${API_URL}/pedidos/${id}/confirmar-devolucion`, { method: 'PUT', body: JSON.stringify({}) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  aprobarTrasDevolucionPedido: async (id: number) => {
+    const res = await fetchWithAuth(`${API_URL}/pedidos/${id}/aprobar-devolucion`, { method: 'PUT', body: JSON.stringify({}) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
   
   resubirComprobante: async (id: number, file: File) => {
     // 1. Subir la imagen directamente a tu Cloudinary
@@ -764,6 +779,11 @@ export const abonosAPI = {
   },
   registrarDevolucion: async (id: number, data: { comprobante_devolucion: string; nota?: string; monto_exceso?: number }) => {
     const res = await fetchWithAuth(`${API_URL}/abonos/${id}/devolucion`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
+  confirmarDevolucionAbono: async (id: number) => {
+    const res = await fetchWithAuth(`${API_URL}/abonos/${id}/confirmar-devolucion`, { method: 'PUT', body: JSON.stringify({}) });
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
     return res.json();
   },

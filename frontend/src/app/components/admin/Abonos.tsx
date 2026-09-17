@@ -59,6 +59,14 @@ export function Abonos() {
   const [compDevolucion, setCompDevolucion]         = useState<string | null>(null);
   const [uploadingComp, setUploadingComp]           = useState(false);
 
+  // modal registrar devolución abono
+  const [showDevAbonoModal, setShowDevAbonoModal]   = useState(false);
+  const [devAbonoId, setDevAbonoId]                 = useState<number | null>(null);
+  const [devAbonoMonto, setDevAbonoMonto]           = useState('');
+  const [devAbonoNota, setDevAbonoNota]             = useState('');
+  const [devAbonoComp, setDevAbonoComp]             = useState<string | null>(null);
+  const [uploadingDevAbono, setUploadingDevAbono]   = useState(false);
+
 const MOTIVOS_RECHAZO = [
   'Monto de transferencia incorrecto',
   'Comprobante de pago falso o ya utilizado',
@@ -142,21 +150,25 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
   );
 
   const ESTADO_LABEL: Record<string, string> = {
-    por_verificar: 'Por verificar',
-    aprobado:      'Aprobado',
-    completo:      'Completo',
-    rechazado:     'Rechazado',
-    cancelado:     'Cancelado',
-    exceso:        'Exceso de pago',
+    por_verificar:          'Por verificar',
+    aprobado:               'Aprobado',
+    completo:               'Completo',
+    rechazado:              'Rechazado',
+    cancelado:              'Cancelado',
+    exceso:                 'Exceso de pago',
+    devolucion_enviada:     'Devolución Enviada',
+    devolucion_confirmada:  'Devolución Confirmada',
   };
 
   const estadoColor = (estado: string) => {
-    if (estado === 'completo')  return { bg: 'rgba(16,185,129,0.1)',  text: '#10B981', border: 'rgba(16,185,129,0.2)' };
-    if (estado === 'aprobado')  return { bg: 'rgba(59,130,246,0.1)',  text: '#3B82F6', border: 'rgba(59,130,246,0.2)' };
-    if (estado === 'rechazado') return { bg: 'rgba(239,68,68,0.1)',   text: '#EF4444', border: 'rgba(239,68,68,0.2)' };
-    if (estado === 'cancelado') return { bg: 'rgba(107,114,128,0.1)', text: '#6B7280', border: 'rgba(107,114,128,0.2)' };
-    if (estado === 'exceso')    return { bg: 'rgba(245,158,11,0.12)', text: '#B45309', border: 'rgba(245,158,11,0.3)' };
-    return                             { bg: 'rgba(245,158,11,0.1)',  text: '#F59E0B', border: 'rgba(245,158,11,0.2)' };
+    if (estado === 'completo')               return { bg: 'rgba(16,185,129,0.1)',  text: '#10B981', border: 'rgba(16,185,129,0.2)' };
+    if (estado === 'aprobado')               return { bg: 'rgba(59,130,246,0.1)',  text: '#3B82F6', border: 'rgba(59,130,246,0.2)' };
+    if (estado === 'rechazado')              return { bg: 'rgba(239,68,68,0.1)',   text: '#EF4444', border: 'rgba(239,68,68,0.2)' };
+    if (estado === 'cancelado')              return { bg: 'rgba(107,114,128,0.1)', text: '#6B7280', border: 'rgba(107,114,128,0.2)' };
+    if (estado === 'exceso')                 return { bg: 'rgba(245,158,11,0.12)', text: '#B45309', border: 'rgba(245,158,11,0.3)' };
+    if (estado === 'devolucion_enviada')     return { bg: 'rgba(91,33,182,0.1)',   text: '#5B21B6', border: 'rgba(91,33,182,0.2)' };
+    if (estado === 'devolucion_confirmada')  return { bg: 'rgba(16,185,129,0.1)',  text: '#059669', border: 'rgba(16,185,129,0.2)' };
+    return                                          { bg: 'rgba(245,158,11,0.1)',  text: '#F59E0B', border: 'rgba(245,158,11,0.2)' };
   };
 
   // ── acciones ──────────────────────────────────────────────────────────────
@@ -198,6 +210,40 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
       toast.success('Abono anulado');
       cargar();
     } catch (err: any) { toast.error(err.message || 'Error al anular'); }
+  };
+
+  const handleUploadDevAbonoComp = async (file: File) => {
+    setUploadingDevAbono(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', CLOUDINARY_PRESET);
+      const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setDevAbonoComp(data.secure_url);
+      toast.success('Comprobante subido');
+    } catch { toast.error('No se pudo subir el comprobante'); }
+    finally { setUploadingDevAbono(false); }
+  };
+
+  const handleRegistrarDevolucionAbono = async () => {
+    if (!devAbonoId || !devAbonoComp) return toast.error('El comprobante de devolución es obligatorio');
+    try {
+      await abonosAPI.registrarDevolucion(devAbonoId, { comprobante_devolucion: devAbonoComp, monto_exceso: devAbonoMonto ? Number(devAbonoMonto) : undefined, nota: devAbonoNota || undefined });
+      toast.success('Devolución registrada. Esperando confirmación del cliente.');
+      setShowDevAbonoModal(false);
+      setDevAbonoId(null); setDevAbonoMonto(''); setDevAbonoNota(''); setDevAbonoComp(null);
+      cargar();
+    } catch (err: any) { toast.error(err.message || 'Error al registrar devolución'); }
+  };
+
+  const handleAprobarInscripcion = async (id: number) => {
+    try {
+      await abonosAPI.aprobar(id);
+      toast.success('Inscripción aprobada y matrícula creada');
+      cargar();
+    } catch (err: any) { toast.error(err.message || 'Error al aprobar'); }
   };
 
   const handleGuardar = async (e: React.FormEvent) => {
@@ -398,6 +444,31 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
                                 </motion.button>
                               </Tooltip>
                             </>
+                          )}
+
+                          {a.estado === 'exceso' && (
+                            <Tooltip text="Registrar devolución">
+                              <motion.button whileHover={{ scale: 1.15 }}
+                                onClick={() => { setDevAbonoId(a.id); setDevAbonoMonto(''); setDevAbonoNota(''); setDevAbonoComp(null); setShowDevAbonoModal(true); }}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <UploadCloud style={{ width: '15px', height: '15px', color: '#5B21B6' }} />
+                              </motion.button>
+                            </Tooltip>
+                          )}
+
+                          {a.estado === 'devolucion_enviada' && (
+                            <Tooltip text="Esperando confirmación del cliente">
+                              <span style={{ padding: '3px 7px', borderRadius: '6px', fontSize: '10px', fontWeight: 600, color: '#5B21B6', background: 'rgba(91,33,182,0.08)' }}>Esperando</span>
+                            </Tooltip>
+                          )}
+
+                          {a.estado === 'devolucion_confirmada' && (
+                            <Tooltip text="Aprobar inscripción">
+                              <motion.button whileHover={{ scale: 1.15 }} onClick={() => handleAprobarInscripcion(a.id)}
+                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                <CheckCircle style={{ width: '15px', height: '15px', color: '#10B981' }} />
+                              </motion.button>
+                            </Tooltip>
                           )}
 
                           {(a.estado === 'por_verificar' || a.estado === 'aprobado') && (
@@ -766,6 +837,116 @@ const motivoFinal = motivoSeleccionado === 'Otro motivo (especificar abajo)' ? m
                   disabled={modalAccion === 'rechazar' && !motivoFinal.trim()}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: modalAccion === 'rechazar' ? (motivoFinal.trim() ? '#EF4444' : '#9CA3AF') : '#B45309', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: (modalAccion === 'rechazar' && !motivoFinal.trim()) ? 'not-allowed' : 'pointer' }}>
                   {modalAccion === 'rechazar' ? 'Confirmar Rechazo' : 'Confirmar Exceso'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL REGISTRAR DEVOLUCIÓN ABONO */}
+      <AnimatePresence>
+        {showDevAbonoModal && devAbonoId && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+            onClick={() => setShowDevAbonoModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: '20px', padding: '32px', maxWidth: '480px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#5B21B6', margin: 0 }}>Registrar Devolución</h2>
+                  <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>Abono #{devAbonoId}</p>
+                </div>
+                <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowDevAbonoModal(false)}
+                  style={{ padding: '8px', borderRadius: '10px', border: 'none', background: 'rgba(91,33,182,0.08)', cursor: 'pointer' }}>
+                  <X style={{ width: '16px', height: '16px', color: '#5B21B6' }} />
+                </motion.button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>MONTO DEVUELTO (opcional)</label>
+                  <input type="number" placeholder="Ej: 20000" value={devAbonoMonto} onChange={e => setDevAbonoMonto(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid rgba(91,33,182,0.2)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>NOTA (opcional)</label>
+                  <input type="text" placeholder="Observación..." value={devAbonoNota} onChange={e => setDevAbonoNota(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid rgba(91,33,182,0.2)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>COMPROBANTE DE DEVOLUCIÓN *</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: `1.5px dashed ${devAbonoComp ? '#10B981' : 'rgba(91,33,182,0.3)'}`, background: devAbonoComp ? 'rgba(16,185,129,0.04)' : '#fff', cursor: 'pointer', fontSize: '13px', color: devAbonoComp ? '#059669' : '#6B7280' }}>
+                    <UploadCloud style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    {uploadingDevAbono ? 'Subiendo...' : devAbonoComp ? '✓ Comprobante subido' : 'Subir comprobante de devolución'}
+                    <input type="file" accept="image/*,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadDevAbonoComp(f); }} disabled={uploadingDevAbono} style={{ display: 'none' }} />
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={() => setShowDevAbonoModal(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(107,114,128,0.25)', background: '#fff', color: '#6B7280', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleRegistrarDevolucionAbono}
+                  disabled={!devAbonoComp || uploadingDevAbono}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: devAbonoComp ? '#5B21B6' : '#9CA3AF', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: devAbonoComp ? 'pointer' : 'not-allowed' }}>
+                  Enviar Devolución
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL REGISTRAR DEVOLUCIÓN ABONO */}
+      <AnimatePresence>
+        {showDevAbonoModal && devAbonoId && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+            onClick={() => setShowDevAbonoModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: '20px', padding: '32px', maxWidth: '480px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#5B21B6', margin: 0 }}>Registrar Devolución</h2>
+                  <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>Abono #{devAbonoId}</p>
+                </div>
+                <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowDevAbonoModal(false)}
+                  style={{ padding: '8px', borderRadius: '10px', border: 'none', background: 'rgba(91,33,182,0.08)', cursor: 'pointer' }}>
+                  <X style={{ width: '16px', height: '16px', color: '#5B21B6' }} />
+                </motion.button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>MONTO DEVUELTO (opcional)</label>
+                  <input type="number" placeholder="Ej: 20000" value={devAbonoMonto} onChange={e => setDevAbonoMonto(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid rgba(91,33,182,0.2)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>NOTA (opcional)</label>
+                  <input type="text" placeholder="Observación..." value={devAbonoNota} onChange={e => setDevAbonoNota(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid rgba(91,33,182,0.2)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>COMPROBANTE DE DEVOLUCIÓN *</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: `1.5px dashed ${devAbonoComp ? '#10B981' : 'rgba(91,33,182,0.3)'}`, background: devAbonoComp ? 'rgba(16,185,129,0.04)' : '#fff', cursor: 'pointer', fontSize: '13px', color: devAbonoComp ? '#059669' : '#6B7280' }}>
+                    <UploadCloud style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    {uploadingDevAbono ? 'Subiendo...' : devAbonoComp ? '✓ Comprobante subido' : 'Subir comprobante de devolución'}
+                    <input type="file" accept="image/*,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadDevAbonoComp(f); }} disabled={uploadingDevAbono} style={{ display: 'none' }} />
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={() => setShowDevAbonoModal(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(107,114,128,0.25)', background: '#fff', color: '#6B7280', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleRegistrarDevolucionAbono}
+                  disabled={!devAbonoComp || uploadingDevAbono}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: devAbonoComp ? '#5B21B6' : '#9CA3AF', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: devAbonoComp ? 'pointer' : 'not-allowed' }}>
+                  Enviar Devolución
                 </motion.button>
               </div>
             </motion.div>

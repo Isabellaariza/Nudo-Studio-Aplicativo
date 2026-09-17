@@ -208,7 +208,8 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
   // Clasificación de los pedidos
   const pedidosRechazados = pedidos.filter(p => isPedidoRechazado(p.estado));
-  const pedidosNormales = pedidos.filter(p => !isPedidoRechazado(p.estado));
+  const pedidosExceso = pedidos.filter(p => p.estado === 'EXCESO_PAGO');
+  const pedidosNormales = pedidos.filter(p => !isPedidoRechazado(p.estado) && p.estado !== 'EXCESO_PAGO');
 
   return (
     <div className="min-h-screen py-10 px-6 pb-20" style={{ backgroundColor: '#FAF7F2' }}>
@@ -499,7 +500,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
           {(['orders', 'workshops'] as const).map(tab => {
             // Contador de acciones pendientes por tab
             const count = tab === 'orders'
-              ? pedidosRechazados.length
+              ? pedidosRechazados.length + pedidosExceso.length
               : misAbonos.filter((a: any) => a.estado === 'por_verificar' || (a.estado === 'aprobado' && Number(a.saldo_pendiente) > 0) || a.estado === 'rechazado' || a.estado === 'exceso').length;
             return (
               <button
@@ -615,9 +616,55 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                     </div>
                   )}
 
-                  {/* SECCIÓN 2: HISTORIAL GENERAL DE PEDIDOS (Pendientes y Completados) */}
+                  {/* SECCIÓN 2: PEDIDOS CON EXCESO DE PAGO */}
+                  {pedidosExceso.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 pb-1 border-b" style={{ borderColor: 'rgba(245,158,11,0.2)' }}>
+                        <span style={{ fontSize: '16px' }}>💛</span>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#92400E' }}>Exceso de pago detectado</h3>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold ml-auto" style={{ background: 'rgba(245,158,11,0.15)', color: '#B45309' }}>
+                          {pedidosExceso.length}
+                        </span>
+                      </div>
+                      <div className="space-y-4">
+                        {pedidosExceso.map((p: any) => (
+                          <div key={p.id_pedidos} className="bg-white rounded-xl p-5 flex flex-col gap-4"
+                            style={{ border: '1.5px solid rgba(245,158,11,0.35)', backgroundColor: 'rgba(255,251,235,0.5)' }}>
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm mb-0.5" style={{ color: '#2D4B39' }}>
+                                  PED-{String(p.id_pedidos).padStart(4, '0')}
+                                </p>
+                                <p className="text-xs" style={{ color: 'rgba(45,75,57,0.5)' }}>{formatFecha(p.fecha)}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                                <p className="font-elegant text-base" style={{ color: '#B8860B' }}>
+                                  ${Number(p.total).toLocaleString('es-CO')}
+                                </p>
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#B45309' }}>Exceso de pago</span>
+                                <button onClick={() => setPedidoDetalle(p)}
+                                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors"
+                                  style={{ borderColor: 'rgba(45,75,57,0.15)', color: '#2D4B39' }}>
+                                  <Eye className="w-3 h-3" /> Ver detalle
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 px-4 py-3 rounded-xl text-xs"
+                              style={{ backgroundColor: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                              <p className="font-semibold" style={{ color: '#92400E' }}>Recibimos tu pago — hay un excedente</p>
+                              <p style={{ color: '#78350F', lineHeight: 1.5 }}>
+                                Detectamos que el monto transferido es mayor al valor del pedido. Tu pedido está <strong>confirmado y en proceso</strong>. Nos comunicaremos contigo muy pronto para coordinar la devolución del excedente. ¡Gracias por tu confianza!
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECCIÓN 3: HISTORIAL GENERAL DE PEDIDOS (Pendientes y Completados) */}
                   <div className="space-y-3">
-                    {pedidosRechazados.length > 0 && (
+                    {(pedidosRechazados.length > 0 || pedidosExceso.length > 0) && (
                       <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 pb-1 border-b">
                         Historial de Pedidos
                       </h3>

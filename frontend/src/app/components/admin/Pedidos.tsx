@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Search, Plus, Info, CheckCircle, Clock, XCircle, Ban, Download, Trash2 } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Info, CheckCircle, Clock, XCircle, Ban, Download, Trash2, AlertTriangle, X, UploadCloud } from 'lucide-react';
 import { Modal } from './Modal';
 import { toast } from 'sonner';
 import { pedidosAPI, clientesAPI, productsAPI } from '../../lib/api';
@@ -451,12 +451,43 @@ export function Pedidos() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [toCancel, setToCancel] = useState<any | null>(null);
   
-  // ESTADOS NUEVOS PARA GESTIONAR EL MOTIVO DINÁMICAMENTE
+  // modal acción (rechazar / exceso)
+  const [modalAccion, setModalAccion] = useState<'rechazar' | 'exceso'>('rechazar');
   const [motivoSeleccionado, setMotivoSeleccionado] = useState('Monto de transferencia incorrecto');
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [montoExceso, setMontoExceso] = useState('');
+  const [notaExceso, setNotaExceso] = useState('');
+  const [compDevolucion, setCompDevolucion] = useState<string | null>(null);
+  const [uploadingComp, setUploadingComp] = useState(false);
 
   const [showComprobante, setShowComprobante] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({ ...emptyForm, items: [] });
+
+  const abrirModalAccion = (p: any) => {
+    setToCancel(p);
+    setModalAccion('rechazar');
+    setMotivoSeleccionado('Monto de transferencia incorrecto');
+    setMotivoCancelacion('');
+    setMontoExceso('');
+    setNotaExceso('');
+    setCompDevolucion(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleUploadCompDevolucion = async (file: File) => {
+    setUploadingComp(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', 'nudo_studio');
+      const res = await fetch('https://api.cloudinary.com/v1_1/ddcx9ks5g/image/upload', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setCompDevolucion(data.secure_url);
+      toast.success('Comprobante subido');
+    } catch { toast.error('No se pudo subir el comprobante'); }
+    finally { setUploadingComp(false); }
+  };
 
   const cargar = async () => {
     try {
@@ -547,26 +578,30 @@ const handleSubmit = async () => {
   const handleCancelar = async () => {
     if (!toCancel) return;
 
-    // Evaluamos el motivo final que viaja al Backend
-    let motivoFinal = motivoSeleccionado;
-    if (motivoSeleccionado.startsWith('Otro motivo')) {
-      motivoFinal = motivoCancelacion.trim() || 'El comprobante de pago adjunto no es válido.';
+    if (modalAccion === 'rechazar') {
+      let motivoFinal = motivoSeleccionado;
+      if (motivoSeleccionado.startsWith('Otro motivo')) {
+        motivoFinal = motivoCancelacion.trim() || 'El comprobante de pago adjunto no es válido.';
+      }
+      try {
+        await pedidosAPI.cancelar(toCancel.id_pedidos, motivoFinal);
+        toast.success('Pago rechazado y notificado al cliente');
+        cargar();
+      } catch (err: any) { toast.error(err.message || 'Error al procesar el rechazo'); return; }
+    } else {
+      try {
+        await pedidosAPI.marcarExceso(toCancel.id_pedidos, {
+          monto_exceso: montoExceso ? Number(montoExceso) : undefined,
+          nota: notaExceso || undefined,
+          comprobante_devolucion: compDevolucion || undefined,
+        });
+        toast.success('Marcado como exceso de pago, cliente notificado');
+        cargar();
+      } catch (err: any) { toast.error(err.message || 'Error al marcar exceso'); return; }
     }
 
-    try {
-      // Llamamos a la API enviando el motivo estructurado
-      await pedidosAPI.cancelar(toCancel.id_pedidos, motivoFinal);
-      toast.success('Pago rechazado y notificado al cliente');
-      cargar();
-    } catch (err: any) { 
-      toast.error(err.message || 'Error al procesar el rechazo'); 
-    }
-
-    // Limpiamos los estados de rechazo
     setShowDeleteModal(false);
     setToCancel(null);
-    setMotivoSeleccionado('Monto de transferencia incorrecto');
-    setMotivoCancelacion('');
   };
 
   const filtered = pedidos.filter(p =>
@@ -721,7 +756,7 @@ const handleSubmit = async () => {
                               </Tooltip>
 
                               <Tooltip text="Rechazar pago">
-                                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => { setToCancel(p); setShowDeleteModal(true); }}
+                                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => abrirModalAccion(p)}
                                   style={{ padding: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>
                                   <Ban style={{ width: '16px', height: '16px', color: '#EF4444' }} />
                                 </motion.button>
@@ -770,75 +805,119 @@ const handleSubmit = async () => {
         </Modal>
       )}
 
-      {/* MODAL CANCELAR/RECHAZAR PAGO (CON SELECT DE MOTIVOS) */}
-      {showDeleteModal && toCancel && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            style={{ background: '#fff', borderRadius: '20px', padding: '32px', maxWidth: '460px', width: '90%', boxShadow: '0 25px 80px rgba(0,0,0,0.3)' }}>
-            
-            <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' }}>Rechazar Pago / Cancelar pedido</h3>
-            <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '20px' }}>
-              ¿Seguro que deseas rechazar el comprobante del pedido <strong>PED-{String(toCancel.id_pedidos).padStart(4,'0')}</strong>? Se guardará el motivo en su perfil y se le enviará un correo automáticamente.
-            </p>
+      {/* MODAL RECHAZAR / EXCESO */}
+      <AnimatePresence>
+        {showDeleteModal && toCancel && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+            onClick={() => setShowDeleteModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: '20px', padding: '32px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.15)', maxHeight: '90vh', overflowY: 'auto' }}>
 
-            {/* SELECT DE MOTIVOS PREDEFINIDOS (¡SIEMPRE VISIBLE!) */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={lStyle}>Selecciona la razón del rechazo *</label>
-              <select 
-                value={motivoSeleccionado} 
-                onChange={e => setMotivoSeleccionado(e.target.value)} 
-                style={iStyle}
-              >
-                {MOTIVOS_RECHAZO.map((motivo, index) => (
-                  <option key={index} value={motivo}>{motivo}</option>
-                ))}
-              </select>
-            </div>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <AlertTriangle style={{ width: '20px', height: '20px', color: '#EF4444' }} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#991B1B', margin: 0 }}>Revisar Comprobante</h2>
+                    <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>PED-{String(toCancel.id_pedidos).padStart(4,'0')} · Se notificará al cliente por correo</p>
+                  </div>
+                </div>
+                <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowDeleteModal(false)}
+                  style={{ padding: '8px', borderRadius: '10px', border: 'none', background: 'rgba(239,68,68,0.08)', cursor: 'pointer', flexShrink: 0 }}>
+                  <X style={{ width: '16px', height: '16px', color: '#EF4444' }} />
+                </motion.button>
+              </div>
 
-            {/* TEXTAREA CONDICIONAL (Solo si se elige "Otro motivo (especificar abajo)") */}
-            {motivoSeleccionado.includes('Otro motivo') && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }} 
-                animate={{ opacity: 1, height: 'auto' }} 
-                style={{ marginBottom: '16px', overflow: 'hidden' }}
-              >
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#2D4B39', display: 'block', marginBottom: '8px' }}>Escribe la razón detallada *</label>
-                <textarea
-                  value={motivoCancelacion}
-                  onChange={e => setMotivoCancelacion(e.target.value)}
-                  placeholder="Detalla la razón por la cual rechazas el pago..."
-                  rows={3}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.2)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                />
-              </motion.div>
-            )}
+              {/* Selector de acción */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={() => setModalAccion('rechazar')}
+                  style={{ padding: '12px', borderRadius: '12px', border: `2px solid ${modalAccion === 'rechazar' ? '#EF4444' : 'rgba(239,68,68,0.15)'}`, background: modalAccion === 'rechazar' ? 'rgba(239,68,68,0.06)' : '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                  <XCircle style={{ width: '18px', height: '18px', color: '#EF4444', margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#991B1B' }}>Rechazar</div>
+                  <div style={{ fontSize: '11px', color: '#6B7280' }}>Comprobante inválido</div>
+                </motion.button>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={() => setModalAccion('exceso')}
+                  style={{ padding: '12px', borderRadius: '12px', border: `2px solid ${modalAccion === 'exceso' ? '#B45309' : 'rgba(245,158,11,0.2)'}`, background: modalAccion === 'exceso' ? 'rgba(245,158,11,0.06)' : '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                  <Download style={{ width: '18px', height: '18px', color: '#B45309', margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#B45309' }}>Exceso de pago</div>
+                  <div style={{ fontSize: '11px', color: '#6B7280' }}>Pagó más de lo debido</div>
+                </motion.button>
+              </div>
 
-            {/* BOTONES */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-              <motion.button 
-                whileHover={{ scale: 1.02 }} 
-                onClick={() => { 
-                  setShowDeleteModal(false); 
-                  setToCancel(null); 
-                  setMotivoSeleccionado('Monto de transferencia incorrecto');
-                  setMotivoCancelacion(''); 
-                }}
-                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(45,75,57,0.2)', background: '#fff', color: '#6B7280', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Volver
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.02 }} 
-                onClick={handleCancelar}
-                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#EF4444', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Confirmar Rechazo
-              </motion.button>
-            </div>
+              {/* Contenido según acción */}
+              <AnimatePresence mode="wait">
+                {modalAccion === 'rechazar' ? (
+                  <motion.div key="rechazar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecciona el motivo *</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                      {MOTIVOS_RECHAZO.map(motivo => (
+                        <motion.button key={motivo} whileTap={{ scale: 0.98 }} onClick={() => setMotivoSeleccionado(motivo)}
+                          style={{ padding: '10px 14px', borderRadius: '10px', border: `1.5px solid ${motivoSeleccionado === motivo ? '#EF4444' : 'rgba(239,68,68,0.15)'}`, background: motivoSeleccionado === motivo ? 'rgba(239,68,68,0.06)' : '#fff', color: motivoSeleccionado === motivo ? '#991B1B' : '#4B5563', fontSize: '13px', fontWeight: motivoSeleccionado === motivo ? 600 : 400, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0, border: `2px solid ${motivoSeleccionado === motivo ? '#EF4444' : '#D1D5DB'}`, background: motivoSeleccionado === motivo ? '#EF4444' : 'transparent', display: 'inline-block' }} />
+                          {motivo}
+                        </motion.button>
+                      ))}
+                    </div>
+                    <AnimatePresence>
+                      {motivoSeleccionado === 'Otro motivo (especificar abajo)' && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden', marginBottom: '16px' }}>
+                          <textarea value={motivoCancelacion} onChange={e => setMotivoCancelacion(e.target.value)} placeholder="Describe el motivo..." rows={3}
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid rgba(239,68,68,0.3)', fontSize: '13px', outline: 'none', resize: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit', color: '#374151' }} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ) : (
+                  <motion.div key="exceso" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div style={{ padding: '14px 16px', borderRadius: '12px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', marginBottom: '16px' }}>
+                      <p style={{ fontSize: '13px', color: '#92400E', margin: 0, lineHeight: 1.5 }}>
+                        El cliente pagó <strong>más de lo que debía</strong>. Se le enviará un correo informándole que su pedido está confirmado y que nos comunicaremos para devolver el excedente.
+                      </p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>MONTO EXCEDENTE (opcional)</label>
+                        <input type="number" placeholder="Ej: 5000" value={montoExceso} onChange={e => setMontoExceso(e.target.value)}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid rgba(245,158,11,0.3)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>NOTA INTERNA (opcional)</label>
+                        <input type="text" placeholder="Observación..." value={notaExceso} onChange={e => setNotaExceso(e.target.value)}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid rgba(245,158,11,0.3)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>COMPROBANTE DE DEVOLUCIÓN (opcional)</label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: `1.5px dashed ${compDevolucion ? '#10B981' : 'rgba(245,158,11,0.3)'}`, background: compDevolucion ? 'rgba(16,185,129,0.04)' : '#fff', cursor: 'pointer', fontSize: '13px', color: compDevolucion ? '#059669' : '#6B7280' }}>
+                        <UploadCloud style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                        {uploadingComp ? 'Subiendo...' : compDevolucion ? '✓ Comprobante subido' : 'Subir comprobante de devolución'}
+                        <input type="file" accept="image/*,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadCompDevolucion(f); }} disabled={uploadingComp} style={{ display: 'none' }} />
+                      </label>
+                      <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>También puedes subirlo después.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={() => setShowDeleteModal(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(107,114,128,0.25)', background: '#fff', color: '#6B7280', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleCancelar}
+                  disabled={modalAccion === 'rechazar' && !motivoSeleccionado.trim()}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: modalAccion === 'rechazar' ? (motivoSeleccionado.trim() ? '#EF4444' : '#9CA3AF') : '#B45309', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: (modalAccion === 'rechazar' && !motivoSeleccionado.trim()) ? 'not-allowed' : 'pointer' }}>
+                  {modalAccion === 'rechazar' ? 'Confirmar Rechazo' : 'Confirmar Exceso'}
+                </motion.button>
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* MODAL COMPROBANTE */}
       {showComprobante && (

@@ -308,6 +308,30 @@ export async function enviarCorreoExcesoPago({ email, nombre, taller, monto_paga
   });
 }
 
+export async function enviarCorreoExcesoPagoPedido({ email, nombre, numeroPedido, producto, exceso }) {
+  await transporter.sendMail({
+    from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Recibimos tu pago del pedido ${numeroPedido} — Hay un excedente 💛`,
+    html: base(`
+      <h2 style="color:#2D4B39;margin:0 0 16px;">¡Hola, ${nombre}! 👋</h2>
+      <p style="color:#4b5563;line-height:1.6;">Revisamos el comprobante de tu pedido <strong>${numeroPedido}</strong> y notamos que el monto transferido es <strong>mayor al valor del pedido</strong>.</p>
+      <div style="background:#fffbeb;border-left:4px solid #B8860B;border-radius:8px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Número de pedido</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#92400e;">${numeroPedido}</p>
+        ${producto ? `<p style="margin:0 0 12px;font-size:14px;color:#4b5563;">Productos: <strong>${producto}</strong></p>` : ''}
+        ${exceso ? `<div style="padding-top:12px;border-top:1px solid #fde68a;"><p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Excedente a devolver</p><p style="margin:0;font-size:16px;font-weight:700;color:#B45309;">$${Number(exceso).toLocaleString('es-CO')} COP</p></div>` : ''}
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:16px 20px;margin:16px 0;">
+        <p style="margin:0 0 6px;font-size:14px;color:#2D4B39;font-weight:600;">¿Qué pasa ahora?</p>
+        <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.6;">Tu pedido queda <strong>confirmado</strong> y en proceso. Nos comunicaremos contigo muy pronto para coordinar la devolución del excedente. 🎉</p>
+      </div>
+      <p style="color:#4b5563;line-height:1.6;">Si tienes alguna duda, puedes respondernos este correo o escribirnos por WhatsApp.</p>
+      <p style="color:#B8860B;font-weight:600;margin-top:24px;">¡Gracias por confiar en Nudo Studio! 🪢</p>
+    `),
+  });
+}
+
 export async function enviarCorreoAbonoCancelado({ email, nombre, taller, fechaTaller, monto }) {
   await transporter.sendMail({
     from: `"Nudo Studio" <${process.env.EMAIL_USER}>`,

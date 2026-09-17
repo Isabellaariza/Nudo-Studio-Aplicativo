@@ -4,6 +4,7 @@ import {
   enviarCorreoPedidoCancelado,
   enviarCorreoPedidoEnProduccion,
   enviarCorreoPedidoCompletado,
+  enviarCorreoExcesoPagoPedido,
 } from '../config/email.js';
 
 
@@ -321,7 +322,43 @@ export async function resubirComprobante(req, res, next) {
 //  VERIFICACIÓN Y PROCESAMIENTO DE PEDIDOS A PRODUCCIÓN
 // ══════════════════════════════════════════════════════════════
 
-// 1. Endpoint para verificar si hay insumos suficientes para un pedido completo
+// MARCAR EXCESO DE PAGO EN PEDIDO
+export async function marcarExcesoPedido(req, res, next) {
+  const { monto_exceso, nota, comprobante_devolucion } = req.body || {};
+  try {
+    const pedidoRes = await pool.query(
+      `SELECT p.id_pedidos, p.total, p.comprobante_pago,
+              STRING_AGG(CONCAT(pr.nombre_producto, ' (', d.cantidad::INT, ')'), ', ') AS producto,
+              c.nombre_completo AS cliente, c.email AS cliente_email
+       FROM pedidos p
+       LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
+       LEFT JOIN detalle_pedido d ON p.id_pedidos = d.id_pedidos
+       LEFT JOIN productos pr ON d.id_producto = pr.id_productos
+       WHERE p.id_pedidos = $1
+       GROUP BY p.id_pedidos, c.nombre_completo, c.email`, [req.params.id]
+    );
+    if (!pedidoRes.rows.length) return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+    const pedido = pedidoRes.rows[0];
+
+    await pool.query(
+      `UPDATE pedidos SET estado = 'EXCESO_PAGO', motivo_rechazo = NULL WHERE id_pedidos = $1`,
+      [req.params.id]
+    );
+
+    if (pedido.cliente_email) {
+      const numero = `PED-${String(pedido.id_pedidos).padStart(4, '0')}`;
+      enviarCorreoExcesoPagoPedido({
+        email: pedido.cliente_email,
+        nombre: pedido.cliente,
+        numeroPedido: numero,
+        producto: pedido.producto || null,
+        exceso: monto_exceso || null,
+      }).catch(() => {});
+    }
+
+    res.json({ mensaje: 'Pedido marcado como exceso de pago, cliente notificado' });
+  } catch (err) { next(err); }
+}
 export async function verificarInsumosPedido(req, res, next) {
   const id_pedidos = req.params.id;
 

@@ -9,7 +9,8 @@ import {
   cancelarPedido,
   resubirComprobante,
   verificarInsumosPedido,
-  aprobarYEnviarAProduccion
+  aprobarYEnviarAProduccion,
+  marcarExcesoPedido,
 } from '../controllers/ventasController.js';
 import pool from '../config/db.js';
 
@@ -112,6 +113,7 @@ router.post('/', verificarToken, async (req, res, next) => {
 
 router.put('/:id', verificarToken, verificarRol('administrador', 'empleado'), actualizarEstadoPedido);
 router.put('/:id/cancelar', verificarToken, cancelarPedido);
+router.put('/:id/exceso', verificarToken, verificarRol('administrador', 'empleado'), marcarExcesoPedido);
 
 router.put('/:id/resubir-comprobante', verificarToken, resubirComprobante);
 router.get('/:id/verificar-insumos', verificarToken, verificarInsumosPedido);

@@ -629,6 +629,11 @@ export const pedidosAPI = {
     if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
     return res.json();
   },
+  marcarExceso: async (id: number, data: { monto_exceso?: number; nota?: string; comprobante_devolucion?: string }) => {
+    const res = await fetchWithAuth(`${API_URL}/pedidos/${id}/exceso`, { method: 'PUT', body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.mensaje); }
+    return res.json();
+  },
   
   resubirComprobante: async (id: number, file: File) => {
     // 1. Subir la imagen directamente a tu Cloudinary

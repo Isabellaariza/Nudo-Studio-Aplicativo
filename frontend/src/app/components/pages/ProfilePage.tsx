@@ -808,7 +808,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                           </div>
                         )}
 
-                        {/* RECHAZADO: motivo + botón resubir */}}
+                        {/* RECHAZADO: motivo + botón resubir */}
                         {esRechazado && (
                           <div className="rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
                             style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)' }}>

@@ -117,6 +117,13 @@ export async function completarTaller(req, res, next) {
 
     const id_programacion = tallerRes.rows[0].id_programacion;
 
+    // Contar personas inscritas con matrícula activa o pendiente_pago
+    const inscritosRes = await client.query(
+      `SELECT COUNT(*) AS total FROM matricula WHERE id_taller = $1 AND estado IN ('activa', 'pendiente_pago')`,
+      [id]
+    );
+    const personas = Number(inscritosRes.rows[0].total) || 1;
+
     const materialesRes = await client.query(
       `SELECT m.id_insumo, m.cantidad, i.nombre, i.stock
        FROM materiales m
@@ -126,16 +133,18 @@ export async function completarTaller(req, res, next) {
     );
 
     for (const mat of materialesRes.rows) {
-      if (Number(mat.stock) < Number(mat.cantidad)) {
+      const requerido = Number(mat.cantidad) * personas;
+      if (Number(mat.stock) < requerido) {
         await client.query('ROLLBACK');
         return res.status(409).json({
-          mensaje: `Stock insuficiente para "${mat.nombre}": disponible ${mat.stock}, requerido ${mat.cantidad}`
+          mensaje: `Stock insuficiente para "${mat.nombre}": disponible ${mat.stock}, requerido ${requerido} (${mat.cantidad} × ${personas} personas)`
         });
       }
     }
 
     for (const mat of materialesRes.rows) {
-      await client.query(`UPDATE insumos SET stock = stock - $1 WHERE id_insumos = $2`, [mat.cantidad, mat.id_insumo]);
+      const requerido = Number(mat.cantidad) * personas;
+      await client.query(`UPDATE insumos SET stock = stock - $1 WHERE id_insumos = $2`, [requerido, mat.id_insumo]);
     }
 
     await client.query(

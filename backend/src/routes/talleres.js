@@ -1,6 +1,6 @@
 // src/routes/talleres.js
 import { Router } from 'express';
-import { verificarToken, verificarRol } from '../middleware/auth.js';
+import { verificarToken, verificarRol, verificarTokenOpcional } from '../middleware/auth.js';
 import { listarTalleres, crearTaller, actualizarTaller, eliminarTaller, listarInstructores, completarTaller, verificarDisponibilidad } from '../controllers/talleresController.js';
 import pool from '../config/db.js';
 import { promoverAEstudiante } from '../config/rolHelper.js';
@@ -8,7 +8,7 @@ import { promoverAEstudiante } from '../config/rolHelper.js';
 const router = Router();
 router.get('/instructores',    verificarToken, listarInstructores);
 router.get('/disponibilidad',  verificarToken, verificarDisponibilidad);
-router.get('/',                listarTalleres);
+router.get('/',                verificarTokenOpcional, listarTalleres);
 router.post('/',               verificarToken, verificarRol('administrador', 'empleado'), crearTaller);
 router.put('/:id/completar',   verificarToken, verificarRol('administrador', 'empleado'), completarTaller);
 router.put('/:id',             verificarToken, verificarRol('administrador', 'empleado'), actualizarTaller);

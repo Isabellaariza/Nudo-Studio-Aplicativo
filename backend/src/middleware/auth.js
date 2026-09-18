@@ -33,6 +33,21 @@ export async function verificarToken(req, res, next) {
 }
 
 /**
+ * Intenta leer el token si existe, pero no falla si no hay.
+ * Deja req.usuario = undefined si no hay token válido.
+ */
+export async function verificarTokenOpcional(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    req.usuario = payload;
+  } catch {}
+  next();
+}
+
+/**
  * Restringe el acceso a uno o más roles.
  * Uso: verificarRol('administrador') o verificarRol('administrador', 'empleado')
  */

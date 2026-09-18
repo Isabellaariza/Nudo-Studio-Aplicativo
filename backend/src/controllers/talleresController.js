@@ -36,6 +36,8 @@ export async function listarTalleres(req, res, next) {
       params.push(`%${buscar}%`);
       query += ` AND (pt.nombre_taller ILIKE $1 OR e.nombre_completo ILIKE $1)`;
     }
+    // Sin token (cliente público) → solo talleres activos. Con token (admin/empleado) → todos.
+    if (!req.usuario) query += ' AND t.estado = TRUE';
     query += ' GROUP BY t.id_talleres, pt.id_programacion_taller, e.nombre_completo ORDER BY t.fecha ASC';
     const result = await pool.query(query, params);
     res.json({ talleres: result.rows, total: result.rowCount });

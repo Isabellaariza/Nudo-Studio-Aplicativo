@@ -17,13 +17,9 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
   const [depositAmount, setDepositAmount] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const storageKey = user ? `talleres_inscritos_${user.id}` : null;
-  const [inscritosIds, setInscritosIds] = useState<number[]>(() => {
-    if (!storageKey) return [];
-    try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; }
-  });
+  const [inscritosIds, setInscritosIds] = useState<number[]>([]);
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); if (user) cargarInscritos(); }, []);
 
   const cargar = async () => {
     try {
@@ -34,6 +30,16 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const cargarInscritos = async () => {
+    try {
+      const data = await abonosAPI.getMisAbonos();
+      const ids = (data.abonos || [])
+        .filter((a: any) => !['cancelado', 'rechazado'].includes(a.estado))
+        .map((a: any) => a.id_taller);
+      setInscritosIds(ids);
+    } catch {}
   };
 
   const estaLleno = (t: any) => {
@@ -103,9 +109,7 @@ export function WorkshopsPage({ onNavigate, user }: WorkshopsPageProps) {
       });
 
       toast.success('¡Inscripción enviada! Verificaremos tu pago y te confirmaremos.');
-      const nuevosInscritos = [...inscritosIds, selected.id_talleres];
-      setInscritosIds(nuevosInscritos);
-      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(nuevosInscritos));
+      setInscritosIds(prev => [...prev, selected.id_talleres]);
       setSelected(null);
       cargar();
     } catch (err: any) {

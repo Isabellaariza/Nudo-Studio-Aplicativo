@@ -245,7 +245,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
               </h1>
               <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#B8860B' }} />
-                <span className="text-sm" style={{ color: 'rgba(45,75,57,0.6)' }}>Cliente</span>
+                <span className="text-sm" style={{ color: 'rgba(45,75,57,0.6)' }}>{capitalize(profileData?.rol || 'Cliente')}</span>
               </div>
               <p className="text-xs" style={{ color: 'rgba(45,75,57,0.4)' }}>
                 Miembro desde {formatFecha(profileData?.fecha_creacion)}

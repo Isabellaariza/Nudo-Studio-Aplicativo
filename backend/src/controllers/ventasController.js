@@ -7,6 +7,20 @@ import {
   enviarCorreoExcesoPagoPedido,
 } from '../config/email.js';
 
+// Helper: registrar movimiento en kardex
+async function registrarMovimientoInsumo(client, { id_insumo, tipo, cantidad, motivo, observacion, id_usuario }) {
+  const res = await client.query(`SELECT stock FROM insumos WHERE id_insumos = $1 FOR UPDATE`, [id_insumo]);
+  if (!res.rows.length) return;
+  const stock_anterior = Number(res.rows[0].stock);
+  const stock_nuevo = tipo === 'ENTRADA' ? stock_anterior + Number(cantidad) : stock_anterior - Number(cantidad);
+  await client.query(`UPDATE insumos SET stock = $1 WHERE id_insumos = $2`, [stock_nuevo, id_insumo]);
+  await client.query(
+    `INSERT INTO movimientos_insumos (id_insumo, tipo, cantidad, motivo, observacion, stock_anterior, stock_nuevo, id_usuario)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [id_insumo, tipo, cantidad, motivo || null, observacion || null, stock_anterior, stock_nuevo, id_usuario || null]
+  );
+}
+
 
 // HELPER: registrar venta automáticamente al completar un pedido
 async function registrarVentaDesdePedido(client, id_pedidos) {
@@ -584,13 +598,15 @@ export async function aprobarYEnviarAProduccion(req, res, next) {
         [id_produccion, id_insumo, cantidad_total]
       );
 
-      // Descontar del inventario de insumos
-      await client.query(
-        `UPDATE insumos 
-         SET stock = stock - $1 
-         WHERE id_insumos = $2`,
-        [cantidad_total, id_insumo]
-      );
+      // Descontar del inventario con kardex
+      await registrarMovimientoInsumo(client, {
+        id_insumo,
+        tipo: 'SALIDA',
+        cantidad: cantidad_total,
+        motivo: 'Producción por pedido',
+        observacion: `Pedido #${id_pedidos} - Producción #${id_produccion}`,
+        id_usuario: id_usuarios || null,
+      });
     }
 
     // Si todas las consultas fueron exitosas, confirmamos los cambios

@@ -1,6 +1,20 @@
 // src/controllers/comprasController.js
 import pool from '../config/db.js';
 
+// Helper: registrar movimiento en kardex
+async function registrarMovimientoInsumo(client, { id_insumo, tipo, cantidad, motivo, observacion, id_usuario }) {
+  const res = await client.query(`SELECT stock FROM insumos WHERE id_insumos = $1 FOR UPDATE`, [id_insumo]);
+  if (!res.rows.length) return;
+  const stock_anterior = Number(res.rows[0].stock);
+  const stock_nuevo = tipo === 'ENTRADA' ? stock_anterior + Number(cantidad) : stock_anterior - Number(cantidad);
+  await client.query(`UPDATE insumos SET stock = $1 WHERE id_insumos = $2`, [stock_nuevo, id_insumo]);
+  await client.query(
+    `INSERT INTO movimientos_insumos (id_insumo, tipo, cantidad, motivo, observacion, stock_anterior, stock_nuevo, id_usuario)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [id_insumo, tipo, cantidad, motivo || null, observacion || null, stock_anterior, stock_nuevo, id_usuario || null]
+  );
+}
+
 // ══════════════════════════════════════════════════════════════
 //  PROVEEDORES
 // ══════════════════════════════════════════════════════════════
@@ -173,9 +187,19 @@ export async function crearCompra(req, res, next) {
     if (Array.isArray(productos) && productos.length) {
       for (const p of productos) {
         await client.query(
-          `INSERT INTO detalle_compras (id_compras, nombre_producto, cantidad, precio_unitario) VALUES ($1,$2,$3,$4)`,
-          [compra.id_compras, p.nombre_producto, p.cantidad, p.precio_unitario]
+          `INSERT INTO detalle_compras (id_compras, nombre_producto, cantidad, precio_unitario, id_insumo) VALUES ($1,$2,$3,$4,$5)`,
+          [compra.id_compras, p.nombre_producto, p.cantidad, p.precio_unitario, p.id_insumo || null]
         );
+        if (p.id_insumo) {
+          await registrarMovimientoInsumo(client, {
+            id_insumo: p.id_insumo,
+            tipo: 'ENTRADA',
+            cantidad: p.cantidad,
+            motivo: 'Compra',
+            observacion: `Compra #${compra.id_compras} - ${p.nombre_producto}`,
+            id_usuario: req.usuario?.id,
+          });
+        }
       }
     }
     await client.query('COMMIT');
@@ -202,12 +226,37 @@ export async function actualizarEstadoCompra(req, res, next) {
     );
     if (!result.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Compra no encontrada' }); }
     if (Array.isArray(productos)) {
+      // Revertir stock de detalles anteriores que tenían insumo
+      const anteriores = await client.query(
+        `SELECT id_insumo, cantidad, nombre_producto FROM detalle_compras WHERE id_compras = $1 AND id_insumo IS NOT NULL`,
+        [req.params.id]
+      );
+      for (const ant of anteriores.rows) {
+        await registrarMovimientoInsumo(client, {
+          id_insumo: ant.id_insumo,
+          tipo: 'SALIDA',
+          cantidad: ant.cantidad,
+          motivo: 'Ajuste por edición de compra',
+          observacion: `Reversión compra #${req.params.id} - ${ant.nombre_producto}`,
+          id_usuario: req.usuario?.id,
+        });
+      }
       await client.query(`DELETE FROM detalle_compras WHERE id_compras = $1`, [req.params.id]);
       for (const p of productos) {
         await client.query(
-          `INSERT INTO detalle_compras (id_compras, nombre_producto, cantidad, precio_unitario) VALUES ($1,$2,$3,$4)`,
-          [req.params.id, p.nombre_producto, p.cantidad, p.precio_unitario]
+          `INSERT INTO detalle_compras (id_compras, nombre_producto, cantidad, precio_unitario, id_insumo) VALUES ($1,$2,$3,$4,$5)`,
+          [req.params.id, p.nombre_producto, p.cantidad, p.precio_unitario, p.id_insumo || null]
         );
+        if (p.id_insumo) {
+          await registrarMovimientoInsumo(client, {
+            id_insumo: p.id_insumo,
+            tipo: 'ENTRADA',
+            cantidad: p.cantidad,
+            motivo: 'Compra (editada)',
+            observacion: `Compra #${req.params.id} - ${p.nombre_producto}`,
+            id_usuario: req.usuario?.id,
+          });
+        }
       }
     }
     await client.query('COMMIT');
@@ -217,12 +266,31 @@ export async function actualizarEstadoCompra(req, res, next) {
 }
 
 export async function anularCompra(req, res, next) {
-    try {
-    const result = await pool.query(
-        `UPDATE compras SET estado = FALSE WHERE id_compras = $1 RETURNING id_compras`,
-        [req.params.id]
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE compras SET estado = FALSE WHERE id_compras = $1 RETURNING id_compras`,
+      [req.params.id]
     );
-    if (!result.rows.length) return res.status(404).json({ mensaje: 'Compra no encontrada' });
+    if (!result.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ mensaje: 'Compra no encontrada' }); }
+    // Revertir stock de todos los insumos vinculados
+    const detalles = await client.query(
+      `SELECT id_insumo, cantidad, nombre_producto FROM detalle_compras WHERE id_compras = $1 AND id_insumo IS NOT NULL`,
+      [req.params.id]
+    );
+    for (const d of detalles.rows) {
+      await registrarMovimientoInsumo(client, {
+        id_insumo: d.id_insumo,
+        tipo: 'SALIDA',
+        cantidad: d.cantidad,
+        motivo: 'Anulación de compra',
+        observacion: `Compra #${req.params.id} anulada - ${d.nombre_producto}`,
+        id_usuario: req.usuario?.id,
+      });
+    }
+    await client.query('COMMIT');
     res.json({ mensaje: 'Compra anulada' });
-    } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK'); next(err); }
+  finally { client.release(); }
 }

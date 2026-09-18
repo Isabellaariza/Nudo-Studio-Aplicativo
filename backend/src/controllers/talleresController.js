@@ -1,5 +1,19 @@
 import pool from '../config/db.js';
 
+// Helper: registrar movimiento en kardex
+async function registrarMovimientoInsumo(client, { id_insumo, tipo, cantidad, motivo, observacion, id_usuario }) {
+  const res = await client.query(`SELECT stock FROM insumos WHERE id_insumos = $1 FOR UPDATE`, [id_insumo]);
+  if (!res.rows.length) return;
+  const stock_anterior = Number(res.rows[0].stock);
+  const stock_nuevo = tipo === 'ENTRADA' ? stock_anterior + Number(cantidad) : stock_anterior - Number(cantidad);
+  await client.query(`UPDATE insumos SET stock = $1 WHERE id_insumos = $2`, [stock_nuevo, id_insumo]);
+  await client.query(
+    `INSERT INTO movimientos_insumos (id_insumo, tipo, cantidad, motivo, observacion, stock_anterior, stock_nuevo, id_usuario)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [id_insumo, tipo, cantidad, motivo || null, observacion || null, stock_anterior, stock_nuevo, id_usuario || null]
+  );
+}
+
 export async function listarTalleres(req, res, next) {
   try {
     const { buscar } = req.query;
@@ -144,7 +158,14 @@ export async function completarTaller(req, res, next) {
 
     for (const mat of materialesRes.rows) {
       const requerido = Number(mat.cantidad) * personas;
-      await client.query(`UPDATE insumos SET stock = stock - $1 WHERE id_insumos = $2`, [requerido, mat.id_insumo]);
+      await registrarMovimientoInsumo(client, {
+        id_insumo: mat.id_insumo,
+        tipo: 'SALIDA',
+        cantidad: requerido,
+        motivo: 'Taller completado',
+        observacion: `Taller #${id} - ${mat.nombre} (${mat.cantidad} x ${personas} personas)`,
+        id_usuario: req.usuario?.id,
+      });
     }
 
     await client.query(

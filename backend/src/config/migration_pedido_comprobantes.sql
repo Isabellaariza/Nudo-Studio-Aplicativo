@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS pedido_comprobantes (
   fecha_subida    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Garantizar la constraint UNIQUE también para tablas ya creadas sin ella.
+-- IF NOT EXISTS evita error si la constraint ya existe (migración idempotente).
+-- Si la tabla ya existe y contiene duplicados (mismo id_pedidos + url),
+-- este ALTER fallará — lo cual es el comportamiento correcto: alerta
+-- de que existen duplicados que deben resolverse antes de la constraint.
+ALTER TABLE pedido_comprobantes
+  ADD CONSTRAINT IF NOT EXISTS uq_pedido_comprobante UNIQUE (id_pedidos, url);
+
 -- 2. Tabla de devoluciones de pedidos (equivalente a abono_historial para excesos)
 --    Guarda el comprobante de devolución que sube el admin (documento diferente al del cliente)
 CREATE TABLE IF NOT EXISTS pedido_devoluciones (
@@ -54,4 +62,4 @@ SELECT
 FROM pedidos
 WHERE comprobante_pago IS NOT NULL
   AND comprobante_pago <> ''
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id_pedidos, url) DO NOTHING;

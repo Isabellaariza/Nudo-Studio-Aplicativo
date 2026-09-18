@@ -7,6 +7,14 @@ CREATE TABLE IF NOT EXISTS abono_comprobantes (
   fecha_subida    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Garantizar la constraint UNIQUE también para tablas ya creadas sin ella.
+-- IF NOT EXISTS evita error si la constraint ya existe (migración idempotente).
+-- Si la tabla ya existe y contiene duplicados (mismo id_abono + url),
+-- este ALTER fallará — lo cual es el comportamiento correcto: alerta
+-- de que existen duplicados que deben resolverse antes de la constraint.
+ALTER TABLE abono_comprobantes
+  ADD CONSTRAINT IF NOT EXISTS uq_abono_comprobante UNIQUE (id_abono, url);
+
 -- Tabla de historial/notas internas de un abono (para exceso, devoluciones, etc.)
 CREATE TABLE IF NOT EXISTS abono_historial (
   id_historial  SERIAL PRIMARY KEY,
@@ -24,4 +32,4 @@ SELECT id_abono, comprobante_pago, 'cliente', fecha_abono
 FROM abonos
 WHERE comprobante_pago IS NOT NULL
   AND comprobante_pago <> ''
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id_abono, url) DO NOTHING;

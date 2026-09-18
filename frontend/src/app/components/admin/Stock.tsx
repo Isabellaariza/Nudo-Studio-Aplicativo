@@ -4,7 +4,7 @@ import { PackageSearch, Search, Plus, Info, Edit, Trash2, AlertTriangle, Chevron
 import { toast } from 'sonner';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { Tooltip } from './Tooltip';
-import { insumosAPI, categoriasInsumosAPI, proveedoresAPI, comprasAPI } from '../../lib/api';
+import { insumosAPI, categoriasInsumosAPI, proveedoresAPI } from '../../lib/api';
 
 interface Material {
   id_insumos: number;
@@ -53,15 +53,12 @@ export function Stock() {
   const [loadingMov, setLoadingMov] = useState(false);
   const [showNuevoMovModal, setShowNuevoMovModal] = useState(false);
   const [movForm, setMovForm] = useState({ tipo: 'ENTRADA' as 'ENTRADA'|'SALIDA', cantidad: 1, motivo: '', observacion: '' });
-  const [productosComprados, setProductosComprados] = useState<any[]>([]);
-
   const cargar = async () => {
     try {
-      const [insData, catData, provData, compData] = await Promise.all([
+      const [insData, catData, provData] = await Promise.all([
         insumosAPI.getAll(),
         categoriasInsumosAPI.getAll(),
         proveedoresAPI.getAll(),
-        comprasAPI.getProductosComprados(),
       ]);
       setMateriales(insData.insumos.map((i: any) => ({
         ...i,
@@ -70,7 +67,6 @@ export function Stock() {
       })));
       setCategorias(catData.categorias);
       setProveedores(provData.proveedores);
-      setProductosComprados(compData.productos || []);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar insumos');
     } finally { setLoading(false); }
@@ -759,36 +755,6 @@ export function Stock() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-                {/* Selector basado en compra */}
-                {productosComprados.length > 0 && (
-                  <div style={{ padding: '14px 16px', background: 'rgba(184,134,11,0.06)', borderRadius: '12px', border: '1px solid rgba(184,134,11,0.2)' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 700, color: '#B8860B', marginBottom: '8px', display: 'block' }}>CARGAR DESDE COMPRA</label>
-                    <select
-                      defaultValue=""
-                      onChange={e => {
-                        const id = Number(e.target.value);
-                        const prod = productosComprados.find((p: any) => p.id_detalle === id);
-                        if (prod) {
-                          setAddForm(f => ({
-                            ...f,
-                            nombre: prod.nombre_producto,
-                            precio: Number(prod.precio_unitario) || 0,
-                            id_proveedor: prod.id_proveedor || '',
-                          }));
-                        }
-                      }}
-                      style={{ ...inputStyle, borderColor: 'rgba(184,134,11,0.3)' }}
-                    >
-                      <option value="">Seleccionar producto comprado...</option>
-                      {productosComprados.map((p: any) => (
-                        <option key={p.id_detalle} value={p.id_detalle}>
-                          {p.nombre_producto} — {p.proveedor} (${Number(p.precio_unitario).toLocaleString('es-CO')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
 
                 <div>
                   <label style={{ fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '6px', display: 'block' }}>Nombre *</label>

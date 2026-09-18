@@ -17,12 +17,12 @@ const iStyle = {
 };
 const lStyle = { display: 'block', fontSize: '13px', fontWeight: 700, color: '#2D4B39', marginBottom: '8px' };
 
-interface Producto { nombre_producto: string; cantidad: string; precio_unitario: string; }
+interface Producto { nombre_producto: string; cantidad: string; precio_unitario: string; id_insumo?: number | null; }
 interface FormState {
   id_proveedor: string; total: string; registro_compra: string;
   factura_url: string; productos: Producto[];
 }
-const emptyProducto = (): Producto => ({ nombre_producto: '', cantidad: '', precio_unitario: '' });
+const emptyProducto = (): Producto => ({ nombre_producto: '', cantidad: '', precio_unitario: '', id_insumo: null });
 const emptyForm = (): FormState => ({
   id_proveedor: '', total: '', registro_compra: '',
   factura_url: '', productos: [emptyProducto()],
@@ -41,6 +41,7 @@ export function Compras() {
   const [uploading, setUploading]       = useState(false);
   const [showFactura, setShowFactura]   = useState<string | null>(null);
   const [previewLocal, setPreviewLocal] = useState<string | null>(null);
+  const [historialProveedor, setHistorialProveedor] = useState<any[]>([]);
 
   const generarRegistro = () => {
     const now = new Date();
@@ -49,14 +50,18 @@ export function Compras() {
     return `FAC-${fecha}-${rand}`;
   };
 
+  const [todosProductosComprados, setTodosProductosComprados] = useState<any[]>([]);
+
   const cargar = async () => {
     try {
-      const [compData, provData] = await Promise.all([
+      const [compData, provData, histData] = await Promise.all([
         comprasAPI.getAll(),
         proveedoresAPI.getAll(),
+        comprasAPI.getProductosComprados(),
       ]);
       setCompras(compData.compras);
       setProveedores(provData.proveedores || []);
+      setTodosProductosComprados(histData.productos || []);
     } catch (err: any) {
       toast.error(err.message || 'Error al cargar compras');
     } finally { setLoading(false); }
@@ -68,8 +73,9 @@ export function Compras() {
     setModalType(type);
     setSelected(c || null);
     if (type === 'edit' && c) {
+      const idProv = String(c.id_proveedor || '');
       setForm({
-        id_proveedor:    String(c.id_proveedor || ''),
+        id_proveedor:    idProv,
         total:           String(c.total || ''),
         registro_compra: c.registro_compra || '',
         factura_url:     c.factura_url || '',
@@ -77,15 +83,18 @@ export function Compras() {
           nombre_producto: p.nombre_producto,
           cantidad:        String(p.cantidad),
           precio_unitario: String(p.precio_unitario),
+          id_insumo:       p.id_insumo || null,
         })) : [emptyProducto()],
       });
+      setHistorialProveedor(todosProductosComprados.filter((p: any) => String(p.id_proveedor) === idProv));
     } else if (type === 'add') {
       setForm({ ...emptyForm(), registro_compra: generarRegistro() });
+      setHistorialProveedor([]);
       setPreviewLocal(null);
     }
   };
 
-  const closeModal = () => { setModalType(null); setSelected(null); setPreviewLocal(null); };
+  const closeModal = () => { setModalType(null); setSelected(null); setPreviewLocal(null); setHistorialProveedor([]); };
 
   const setProducto = (i: number, field: keyof Producto, val: string) =>
     setForm(p => { const arr = [...p.productos]; arr[i] = { ...arr[i], [field]: val }; return { ...p, productos: arr }; });
@@ -132,6 +141,7 @@ export function Compras() {
         nombre_producto: p.nombre_producto,
         cantidad:        parseFloat(p.cantidad) || 1,
         precio_unitario: parseFloat(p.precio_unitario) || 0,
+        id_insumo:       p.id_insumo || null,
       })),
     };
     try {
@@ -412,11 +422,32 @@ export function Compras() {
               {/* Proveedor */}
               <div>
                 <label style={lStyle}>PROVEEDOR *</label>
-                <select value={form.id_proveedor} onChange={e => setForm(p => ({ ...p, id_proveedor: e.target.value }))} style={iStyle}>
+                <select value={form.id_proveedor} onChange={e => {
+                  const idProv = e.target.value;
+                  setForm(p => ({ ...p, id_proveedor: idProv }));
+                  setHistorialProveedor(todosProductosComprados.filter((p: any) => String(p.id_proveedor) === idProv));
+                }} style={iStyle}>
                   <option value="">Seleccionar proveedor...</option>
                   {proveedores.map((p: any) => <option key={p.id_proveedor} value={p.id_proveedor}>{p.nombre_empresa}</option>)}
                 </select>
               </div>
+
+              {/* Historial del proveedor */}
+              {historialProveedor.length > 0 && (
+                <div style={{ padding: '14px 16px', background: 'rgba(184,134,11,0.05)', borderRadius: '12px', border: '1px solid rgba(184,134,11,0.2)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#B8860B', marginBottom: '10px', letterSpacing: '0.05em' }}>COMPRADOS ANTES A ESTE PROVEEDOR — clic para agregar</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {Array.from(new Map(historialProveedor.map((p: any) => [p.nombre_producto, p])).values()).map((p: any) => (
+                      <motion.button key={p.id_detalle} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => setForm(f => ({ ...f, productos: [...f.productos, { nombre_producto: p.nombre_producto, cantidad: '1', precio_unitario: String(p.precio_unitario), id_insumo: p.id_insumo || null }] }))}
+                        style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(184,134,11,0.35)', background: '#fff', cursor: 'pointer', fontSize: '13px', color: '#2D4B39', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Plus style={{ width: '12px', height: '12px', color: '#B8860B' }} />
+                        {p.nombre_producto} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>${Number(p.precio_unitario).toLocaleString('es-CO')}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Registro — solo lectura, generado automáticamente */}
               <div>
